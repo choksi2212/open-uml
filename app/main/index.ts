@@ -39,6 +39,12 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Open external links in default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
 }
 
 function createMenu() {
@@ -360,5 +366,10 @@ ipcMain.handle('save-as-file', async (_, { content, defaultPath }) => {
   } catch (error: any) {
     return { canceled: false, error: error.message };
   }
+});
+
+// IPC: Open external URL
+ipcMain.handle('open-external', async (_, url: string) => {
+  await shell.openExternal(url);
 });
 

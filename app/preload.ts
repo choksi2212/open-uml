@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('menu-action', handler);
     };
   },
+  
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
 });
 
 declare global {
@@ -63,6 +66,7 @@ declare global {
       saveFile: (content: string, defaultPath?: string, useExistingPath?: boolean) => Promise<FileOperationResult>;
       saveAsFile: (content: string, defaultPath?: string) => Promise<FileOperationResult>;
       onMenuAction: (callback: (action: string) => void) => () => void;
+      openExternal: (url: string) => Promise<void>;
     };
   }
 }
