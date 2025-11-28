@@ -82,24 +82,11 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
               transition: 'transform 0.2s ease',
             }}
           >
-            {format === 'svg' ? (
-              <div 
-                className="max-w-full max-h-full flex items-center justify-center"
-                dangerouslySetInnerHTML={{ 
-                  __html: data.includes('data:image/svg+xml;base64,') 
-                    ? atob(data.split(',')[1]) 
-                    : data.includes('data:image/svg+xml,')
-                    ? decodeURIComponent(data.split(',')[1])
-                    : data
-                }}
-              />
-            ) : (
-              <img 
-                src={data} 
-                alt="Diagram preview" 
-                className="max-w-full max-h-full object-contain"
-              />
-            )}
+            <img
+              src={data}
+              alt="Diagram preview"
+              className="preview-img"
+            />
           </div>
         ) : (
           <div className={`
