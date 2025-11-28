@@ -11,12 +11,8 @@ on:
         required: true
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest]
-    
+  build-windows:
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,10 +29,54 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Build installers
+      - name: Build Windows installer
         run: npm run dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: build/*.exe
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build macOS installer
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: build/*.dmg
+          retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Get version from tag
         id: get_version
@@ -53,9 +93,8 @@ jobs:
         id: changelog
         run: |
           if [ -f CHANGELOG.md ]; then
-            # Extract changelog for this version
             VERSION="${{ steps.get_version.outputs.version }}"
-            CHANGELOG=$(awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | sed '$d')
+            CHANGELOG=$(awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | sed '$d' || echo "✨ New release")
             echo "changelog<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGELOG" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
@@ -63,8 +102,19 @@ jobs:
             echo "changelog=✨ New release" >> $GITHUB_OUTPUT
           fi
 
-      - name: Upload Windows artifact
-        if: matrix.os == 'windows-latest'
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: ./artifacts/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-installer
+          path: ./artifacts/macos
+
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
@@ -72,22 +122,24 @@ jobs:
           body: |
             ${{ steps.changelog.outputs.changelog }}
             
-            ## Downloads
+            ## 📦 Downloads
             
-            - 🪟 **Windows**: See artifacts below
-            - 🍎 **macOS**: See artifacts below
+            - 🪟 **Windows**: Download `OpenUML-Setup-${{ steps.get_version.outputs.version }}.exe` below
+            - 🍎 **macOS**: Download `OpenUML-${{ steps.get_version.outputs.version }}.dmg` below
+            
+            ## 🚀 Installation
+            
+            ### Windows
+            1. Download and run the `.exe` installer
+            2. Follow the setup wizard
+            3. Launch Open UML from the desktop shortcut
+            
+            ### macOS
+            1. Download and open the `.dmg` file
+            2. Drag Open UML to Applications
+            3. Launch from Applications or Spotlight
           files: |
-            build/*.exe
+            artifacts/windows/*.exe
+            artifacts/macos/*.dmg
           draft: false
           prerelease: ${{ contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') }}
-
-      - name: Upload macOS artifact
-        if: matrix.os == 'macos-latest'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            build/*.dmg
-          tag_name: ${{ steps.get_version.outputs.version }}
-          draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') }}
-

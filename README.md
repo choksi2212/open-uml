@@ -1,70 +1,128 @@
 # Open UML
 
-A completely offline, smooth, modern PlantUML editor with bundled rendering engine. Create, preview, and export all PlantUML diagrams with zero dependencies — no Java installation required!
+<div align="center">
 
-![Open UML](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
+![Open UML Logo](app/assets/open_uml_logo.png)
 
-## 🔖 Overview
+**A completely offline, smooth, modern PlantUML editor with bundled rendering engine**
 
-Open UML is a standalone desktop application that provides a beautiful, minimal interface for creating PlantUML diagrams. Everything runs locally — the PlantUML rendering engine and Java runtime are bundled, so you can work completely offline without any setup.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/choksi2212/open-uml/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](https://github.com/choksi2212/open-uml/releases)
 
-### Key Features
+[Download](https://github.com/choksi2212/open-uml/releases) • [Documentation](#-features) • [Report Bug](https://github.com/choksi2212/open-uml/issues) • [Request Feature](https://github.com/choksi2212/open-uml/issues)
 
-- ✨ **Fully Offline** — No internet connection required
-- 🚀 **Zero Dependencies** — Bundled JRE and PlantUML engine
-- 🎨 **Modern UI** — Clean, minimal design with dark/light themes
-- ⚡ **Live Preview** — Real-time diagram rendering as you type
-- 📝 **Monaco Editor** — Full-featured code editor with syntax highlighting
-- 💾 **Export Support** — Save diagrams as PNG or SVG
-- 🔍 **Error Handling** — Clear error messages with line highlighting
-- ⌨️ **Keyboard Shortcuts** — Fast workflow with hotkeys
-- 📦 **Auto-Updates** — Automatic updates via GitHub Releases
+</div>
+
+---
+
+## 🎯 Overview
+
+**Open UML** is a professional desktop application designed for creating PlantUML diagrams with zero setup required. Everything runs completely offline — the PlantUML rendering engine and Java runtime are bundled, so you can start creating diagrams immediately without any installation hassles.
+
+Perfect for students, developers, and technical writers who need a reliable, fast, and beautiful tool for creating UML diagrams, flowcharts, and other PlantUML-supported diagrams.
+
+### ✨ Key Features
+
+- 🚀 **Fully Offline** - No internet connection required, all dependencies bundled
+- ⚡ **Lightning Fast** - 300ms debounced rendering for instant preview updates
+- 🎨 **Modern UI** - Beautiful, minimal interface with smooth animations
+- 🌓 **Theme Support** - Dark and light themes with seamless switching
+- 📝 **Monaco Editor** - Professional code editor with PlantUML syntax highlighting
+- 🔍 **Zoom & Pan** - Zoom from 25% to 300% with Google Maps-style panning
+- 💾 **Export Options** - Save diagrams as PNG or SVG
+- ⌨️ **Keyboard Shortcuts** - Complete keyboard support for power users
+- 📦 **Cross-Platform** - Windows and macOS installers available
+- 🔒 **Secure** - Built with security best practices (context isolation, no node integration)
+
+---
+
+## 📸 Screenshots
+
+### Dark Theme
+![Dark Theme Preview](docs/screenshots/dark-theme.png)
+
+### Light Theme
+![Light Theme Preview](docs/screenshots/light-theme.png)
+
+---
+
+## 🚀 Quick Start
+
+### Windows
+
+1. Download `OpenUML-Setup-1.0.0.exe` from [Releases](https://github.com/choksi2212/open-uml/releases)
+2. Run the installer
+3. Launch Open UML from the desktop shortcut or Start menu
+4. Start creating your PlantUML diagrams!
+
+### macOS
+
+1. Download `OpenUML-1.0.0.dmg` from [Releases](https://github.com/choksi2212/open-uml/releases)
+2. Open the DMG file and drag Open UML to Applications
+3. Launch from Applications or Spotlight
+4. If you see a security warning, go to System Preferences → Security & Privacy → Allow
+
+---
 
 ## 💡 Features
 
 ### Core Functionality
 
-- **Live Rendering**: Debounced preview updates as you type (700ms delay)
-- **Full PlantUML Support**: All diagram types (Sequence, Class, Activity, Use Case, etc.)
-- **Export Options**: PNG and SVG formats
-- **File Operations**: Open, save, and manage `.puml` files
-- **Error Detection**: Automatic error parsing with line numbers
-- **Theme Toggle**: Switch between dark and light modes
-- **Responsive Layout**: Works perfectly on all screen sizes
+- **Live Rendering** - See your diagrams update in real-time as you type (300ms debounce)
+- **Full PlantUML Support** - All diagram types supported:
+  - Sequence Diagrams
+  - Class Diagrams
+  - Activity Diagrams
+  - Use Case Diagrams
+  - Component Diagrams
+  - State Diagrams
+  - And more!
+- **Export Options** - Save your diagrams as:
+  - PNG (raster format, perfect for presentations)
+  - SVG (vector format, perfect for documentation)
+- **File Operations**:
+  - New file (`Ctrl+N`)
+  - Open file (`Ctrl+O`)
+  - Save file (`Ctrl+S`)
+  - Save As (`Ctrl+Shift+S`)
+- **Error Detection** - Automatic error parsing with line numbers and helpful messages
 
 ### User Experience
 
-- **Smooth Performance**: 60 FPS UI, no lag during editing
-- **Fast Rendering**: Typical diagrams render in <1 second
-- **Intuitive Interface**: Split-pane editor and preview
-- **Persistent State**: Auto-saves your work to localStorage
-- **Keyboard Shortcuts**: 
-  - `Ctrl+N` / `Cmd+N` — New diagram
-  - `Ctrl+R` / `Cmd+R` — Render diagram
-  - `Ctrl+S` / `Cmd+S` — Save file
-  - `Ctrl+T` / `Cmd+T` — Toggle theme
+- **Smooth Performance** - 60 FPS UI with no lag during editing
+- **Fast Rendering** - Typical diagrams render in <1 second
+- **Intuitive Interface** - Split-pane editor and preview with resizable divider
+- **Zoom Controls** - Zoom from 25% to 300% with smooth scaling
+- **Pan Support** - When zoomed in, drag to pan around the diagram (like Google Maps)
+- **Persistent State** - Auto-saves your work to localStorage
+- **Theme Toggle** - Switch between dark and light themes instantly
+- **Responsive Layout** - Works perfectly on all screen sizes
 
-## 📦 Installation
+### Keyboard Shortcuts
 
-### Windows
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` / `Cmd+N` | New file |
+| `Ctrl+O` / `Cmd+O` | Open file |
+| `Ctrl+S` / `Cmd+S` | Save file |
+| `Ctrl+Shift+S` / `Cmd+Shift+S` | Save As |
+| `Ctrl+Shift+R` / `Cmd+Shift+R` | Render diagram |
+| `Ctrl+Shift+G` / `Cmd+Shift+G` | Export as SVG |
+| `Ctrl+Shift+P` / `Cmd+Shift+P` | Export as PNG |
 
-1. Download `OpenUML-Setup-*.exe` from [Releases](https://github.com/choksi2212/open-uml/releases)
-2. Run the installer
-3. Follow the setup wizard
-4. Launch Open UML from the desktop shortcut or Start menu
+### Menu Bar
 
-### macOS
+- **File Menu**:
+  - New, Open, Save, Save As
+  - Render, Export as SVG, Export as PNG
+- **Help Menu**:
+  - FAQ (links to GitHub repository)
+  - Contact (opens email client)
 
-1. Download `OpenUML-*.dmg` from [Releases](https://github.com/choksi2212/open-uml/releases)
-2. Open the DMG file
-3. Drag Open UML to Applications
-4. Launch from Applications or Spotlight
+---
 
-**Note**: On macOS, you may need to allow the app in System Preferences → Security & Privacy if you see a security warning.
-
-## 🛠️ Development Setup
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -104,10 +162,6 @@ Open UML is a standalone desktop application that provides a beautiful, minimal 
    npm run electron:dev
    ```
 
-   This starts:
-   - Vite dev server (React)
-   - Electron with hot reload
-
 ### Development Commands
 
 | Command | Description |
@@ -118,82 +172,38 @@ Open UML is a standalone desktop application that provides a beautiful, minimal 
 | `npm run dist` | Generate installers (.exe/.dmg) |
 | `npm run lint` | Lint TypeScript/React code |
 
-## 🚀 Build Instructions
-
-### Building Installers
-
-1. **Build the application**
-   ```bash
-   npm run build
-   ```
-
-2. **Generate installers**
-   ```bash
-   npm run dist
-   ```
-
-   This creates:
-   - Windows: `build/OpenUML-Setup-*.exe`
-   - macOS: `build/OpenUML-*.dmg`
-
-### Build Configuration
-
-The build is configured in `electron-builder.yml`:
-- Windows: NSIS installer with custom icon
-- macOS: DMG with drag-to-install
-- Bundles: Electron, PlantUML, and JRE
-
-## 🧩 GitHub Integration
-
-### Automated Releases
-
-Releases are automatically created via GitHub Actions when you push a version tag:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-The workflow:
-1. Builds the application on Windows and macOS
-2. Generates installers
-3. Creates a GitHub Release with:
-   - Version tag
-   - Changelog from `CHANGELOG.md`
-   - Downloadable installers
-
-### Manual Release
-
-You can also trigger a release manually from the Actions tab:
-1. Go to Actions → Release
-2. Click "Run workflow"
-3. Enter version tag (e.g., `v1.0.0`)
-
-## 📸 Screenshots
-
-### Dark Theme
-![Dark Theme](docs/screenshots/dark-theme.png)
-
-### Light Theme
-![Light Theme](docs/screenshots/light-theme.png)
+---
 
 ## 🏗️ Project Structure
 
 ```
 open-uml/
 ├── app/
-│   ├── main/           # Electron main process
-│   ├── renderer/       # React UI components
-│   ├── assets/         # Icons, logos
-│   ├── plantuml/       # plantuml.jar + JRE
-│   └── preload.ts      # IPC bridge
-├── scripts/            # Build scripts
+│   ├── main/              # Electron main process
+│   │   └── index.ts       # Window creation, IPC handlers
+│   ├── renderer/          # React UI components
+│   │   ├── App.tsx        # Main app component
+│   │   ├── components/    # UI components
+│   │   │   ├── Editor.tsx      # Monaco editor wrapper
+│   │   │   ├── Preview.tsx    # Diagram preview with zoom/pan
+│   │   │   ├── TopBar.tsx     # Top navigation bar
+│   │   │   └── ErrorPanel.tsx # Error display
+│   │   └── index.css      # Global styles
+│   ├── assets/            # Icons, logos
+│   ├── plantuml/          # plantuml.jar + JRE
+│   └── preload.ts         # IPC bridge
 ├── .github/
-│   └── workflows/      # CI/CD
+│   └── workflows/         # CI/CD workflows
+│       └── release.yml     # Automated releases
+├── build/                 # Build output (installers)
+├── dist/                  # Production build
+├── dist-electron/        # Electron build output
 ├── package.json
 ├── electron-builder.yml
 └── README.md
 ```
+
+---
 
 ## 🧪 Quality Targets
 
@@ -203,9 +213,11 @@ open-uml/
 - ✅ Fully offline operation
 - ✅ Memory-safe subprocess handling
 - ✅ Full PlantUML compatibility
-- ✅ Installer size: ≤250 MB
+- ✅ Installer size: ~200 MB (includes Electron, Chromium, PlantUML, and JRE)
 
-## 🧩 Contributing
+---
+
+## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -217,7 +229,7 @@ Contributions are welcome! Please follow these steps:
 
 ### Commit Guidelines
 
-Follow semantic commits:
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `feat:` — New feature
 - `fix:` — Bug fix
 - `docs:` — Documentation
@@ -226,15 +238,23 @@ Follow semantic commits:
 - `test:` — Tests
 - `chore:` — Maintenance
 
-## 🏷️ License
+---
+
+## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🔗 Links
 
 - [GitHub Repository](https://github.com/choksi2212/open-uml)
 - [Releases](https://github.com/choksi2212/open-uml/releases)
 - [PlantUML Documentation](https://plantuml.com/)
+- [Report an Issue](https://github.com/choksi2212/open-uml/issues)
+- [Request a Feature](https://github.com/choksi2212/open-uml/issues)
+
+---
 
 ## 🙏 Acknowledgments
 
@@ -243,8 +263,16 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - [Monaco Editor](https://microsoft.github.io/monaco-editor/) — Code editor
 - [React](https://react.dev/) — UI library
 - [Tailwind CSS](https://tailwindcss.com/) — Styling framework
+- [Vite](https://vitejs.dev/) — Build tool
 
 ---
 
-Made with ❤️ for the PlantUML community
+<div align="center">
 
+**Created for Students by [Manas Choksi](https://github.com/choksi2212) with ❤️**
+
+[![GitHub](https://img.shields.io/badge/GitHub-choksi2212-black?style=flat&logo=github)](https://github.com/choksi2212)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Manas%20Choksi-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/manas-choksi)
+[![Instagram](https://img.shields.io/badge/Instagram-manas__choksi__22-E4405F?style=flat&logo=instagram)](https://www.instagram.com/manas_choksi_22)
+
+</div>
