@@ -40,12 +40,12 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <div className={`
-      flex items-center justify-between px-4 py-3 border-b
+      flex items-center justify-between px-6 py-4 border-b
       ${theme === 'dark' ? 'bg-dark-surface border-dark-border' : 'bg-white border-gray-200'}
     `}>
       <div className="flex items-center gap-2">
         <h1 className={`
-          text-lg font-bold
+          text-2xl font-semibold tracking-wide
           ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
         `}>
           Open UML

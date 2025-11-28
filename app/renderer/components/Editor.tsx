@@ -92,12 +92,13 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className={`flex-1 flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-dark-surface' : 'bg-white'} rounded-md shadow-inner border ${theme === 'dark' ? 'border-dark-border' : 'border-gray-200'}`}>
       <div className={`
-        px-4 py-2 text-sm font-medium border-b
-        ${theme === 'dark' ? 'bg-dark-surface border-dark-border text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-700'}
+        px-5 py-3 text-sm font-semibold uppercase tracking-wide border-b flex items-center justify-between
+        ${theme === 'dark' ? 'bg-dark-surface border-dark-border text-gray-200' : 'bg-gray-100 border-gray-200 text-gray-700'}
       `}>
-        Editor
+        <span>Editor</span>
+        <span className="text-xs font-normal opacity-60">Monaco + PlantUML</span>
       </div>
       <div className="flex-1">
         <Editor
