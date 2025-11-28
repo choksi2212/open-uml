@@ -43,12 +43,14 @@ const TopBar: React.FC<TopBarProps> = ({
       flex items-center justify-between px-6 py-4 border-b
       ${theme === 'dark' ? 'bg-dark-surface border-dark-border' : 'bg-white border-gray-200'}
     `}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-cyan-400/70 to-blue-500/70 flex items-center justify-center shadow-lg shadow-cyan-500/30 border border-white/10">
+          <span className="text-lg font-black text-white">OU</span>
+        </div>
         <h1 className={`
-          text-2xl font-semibold tracking-wide
-          ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
+          text-3xl font-black tracking-tight leading-none app-title ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
         `}>
-          Open UML
+          <span className="app-title-accent">Open</span> <span className="opacity-80">UML</span>
         </h1>
       </div>
 

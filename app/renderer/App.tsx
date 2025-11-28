@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import ErrorPanel from './components/ErrorPanel';
@@ -25,6 +25,10 @@ function App() {
   });
   const [errorPanelOpen, setErrorPanelOpen] = useState(false);
   const renderTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isReady, setIsReady] = useState(false);
+  const [paneRatio, setPaneRatio] = useState(52);
+  const [isResizing, setIsResizing] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
 
   // Save source to localStorage
   useEffect(() => {
@@ -36,6 +40,42 @@ function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('openuml_theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMove = (event: MouseEvent) => {
+      if (!workspaceRef.current) return;
+      const bounds = workspaceRef.current.getBoundingClientRect();
+      const next = ((event.clientX - bounds.left) / bounds.width) * 100;
+      const clamped = Math.min(75, Math.max(30, next));
+      setPaneRatio(clamped);
+    };
+    const stop = () => setIsResizing(false);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('mouseleave', stop);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', stop);
+      window.removeEventListener('mouseleave', stop);
+    };
+  }, [isResizing]);
+
+  const handleResizerKey = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setPaneRatio(prev => Math.max(30, prev - 2));
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setPaneRatio(prev => Math.min(75, prev + 2));
+    }
+  };
 
   const renderDiagram = useCallback(async (umlSource: string) => {
     if (!umlSource.trim()) {
@@ -136,49 +176,70 @@ function App() {
   };
 
   return (
-    <div className={`h-screen flex flex-col ${theme === 'dark' ? 'dark bg-dark-bg' : 'bg-gray-50'}`}>
-      <TopBar
-        onNew={handleNew}
-        onRender={() => renderDiagram(source)}
-        onExport={handleExport}
-        onOpen={handleOpen}
-        onSave={handleSave}
-        onThemeToggle={toggleTheme}
-        theme={theme}
-        canExport={!!previewData}
-        isRendering={isRendering}
-        format={format}
-        onFormatChange={setFormat}
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col border-r border-gray-300 dark:border-dark-border">
-          <Editor
-            value={source}
-            onChange={setSource}
-            error={error}
-            theme={theme}
-          />
-        </div>
-        
-        <div className="flex-1 flex flex-col">
-          <Preview
-            data={previewData}
-            isRendering={isRendering}
-            format={format}
-            theme={theme}
-          />
-        </div>
-      </div>
-
-      {error && (
-        <ErrorPanel
-          error={error}
-          isOpen={errorPanelOpen}
-          onToggle={() => setErrorPanelOpen(!errorPanelOpen)}
+    <div className={`app-shell ${theme === 'dark' ? 'theme-dark' : 'theme-light'} ${isReady ? 'app-shell--ready' : ''}`}>
+      <div className="app-ambient app-ambient--one" />
+      <div className="app-ambient app-ambient--two" />
+      <div className="app-surface">
+        <TopBar
+          onNew={handleNew}
+          onRender={() => renderDiagram(source)}
+          onExport={handleExport}
+          onOpen={handleOpen}
+          onSave={handleSave}
+          onThemeToggle={toggleTheme}
           theme={theme}
+          canExport={!!previewData}
+          isRendering={isRendering}
+          format={format}
+          onFormatChange={setFormat}
         />
-      )}
+        
+        <div className="workspace">
+          <div
+            className="workspace-grid"
+            ref={workspaceRef}
+            style={{
+              gridTemplateColumns: `calc(${paneRatio}% - 6px) 12px calc(${100 - paneRatio}% - 6px)`
+            }}
+          >
+            <div className="app-pane">
+              <Editor
+                value={source}
+                onChange={setSource}
+                error={error}
+                theme={theme}
+              />
+            </div>
+            <button
+              type="button"
+              className={`app-resizer ${isResizing ? 'is-active' : ''}`}
+              onMouseDown={() => setIsResizing(true)}
+              onKeyDown={handleResizerKey}
+              aria-label="Resize panes"
+              aria-orientation="vertical"
+              role="separator"
+              tabIndex={0}
+            />
+            <div className="app-pane">
+              <Preview
+                data={previewData}
+                isRendering={isRendering}
+                format={format}
+                theme={theme}
+              />
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <ErrorPanel
+            error={error}
+            isOpen={errorPanelOpen}
+            onToggle={() => setErrorPanelOpen(!errorPanelOpen)}
+            theme={theme}
+          />
+        )}
+      </div>
     </div>
   );
 }

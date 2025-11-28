@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface PreviewProps {
   data: string | null;
@@ -19,15 +19,19 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
 
   const resetZoom = () => setZoom(1);
 
+  useEffect(() => {
+    setZoom(1);
+  }, [data, format]);
+
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-dark-surface' : 'bg-white'} rounded-md shadow-inner border ${theme === 'dark' ? 'border-dark-border' : 'border-gray-200'}`}>
+    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border ${theme === 'dark' ? 'bg-slate-900/70 border-white/5 shadow-[0_20px_60px_rgba(8,15,35,0.8)]' : 'bg-white border-slate-200 shadow-lg'}`}>
       <div className={`
-        px-5 py-3 text-sm font-semibold uppercase tracking-wide border-b flex items-center justify-between
-        ${theme === 'dark' ? 'bg-dark-surface border-dark-border text-gray-200' : 'bg-gray-100 border-gray-200 text-gray-700'}
+        px-6 py-3 text-xs font-semibold uppercase tracking-[0.3em] border-b flex items-center justify-between
+        ${theme === 'dark' ? 'bg-slate-900/60 border-white/5 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-600'}
       `}>
         <span>Preview</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs opacity-60">Zoom: {(zoom * 100).toFixed(0)}%</span>
+          <span className="text-[11px] opacity-60 font-medium">Zoom {(zoom * 100).toFixed(0)}%</span>
           <div className="inline-flex rounded-md overflow-hidden border border-gray-300 dark:border-dark-border">
             <button
               type="button"
@@ -54,9 +58,10 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
         </div>
       </div>
       <div className={`
-        flex-1 flex items-center justify-center overflow-auto p-6
-        ${theme === 'dark' ? 'bg-dark-bg/70' : 'bg-white'}
+        flex-1 overflow-auto p-8 preview-stage
+        ${theme === 'dark' ? 'bg-[#0b1222]' : 'bg-slate-50'}
       `}>
+        <div className="preview-center">
         {isRendering ? (
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
@@ -66,10 +71,10 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
           </div>
         ) : data ? (
           <div
-            className="max-w-full max-h-full"
+            className="preview-zoom"
             style={{
               transform: `scale(${zoom})`,
-              transformOrigin: 'top center',
+              transformOrigin: 'center center',
               transition: 'transform 0.2s ease',
             }}
           >
@@ -101,6 +106,7 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
             <p className="text-sm">Start typing PlantUML code to see the diagram</p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
