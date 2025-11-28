@@ -1,0 +1,28 @@
+appId: com.openuml.app
+productName: Open UML
+directories:
+  output: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - app/plantuml/**/*
+  - app/assets/**/*
+  - package.json
+asar: true
+extraResources:
+  - from: app/plantuml
+    to: plantuml
+win:
+  target: nsis
+  icon: app/assets/icon.ico
+  artifactName: "OpenUML-Setup-${version}.exe"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+mac:
+  target: dmg
+  icon: app/assets/icon.icns
+  artifactName: "OpenUML-${version}.dmg"
+  category: public.app-category.developer-tools
+

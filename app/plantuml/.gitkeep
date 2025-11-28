@@ -1,0 +1,6 @@
+# This directory should contain:
+# - plantuml.jar (download from https://github.com/plantuml/plantuml/releases)
+# - jre/ (extract OpenJDK 17+ JRE here)
+#
+# See scripts/setup-plantuml.md for detailed instructions.
+
