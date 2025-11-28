@@ -37,7 +37,10 @@ function App() {
 
   // Apply theme
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    const isDark = theme === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.body.classList.toggle('theme-dark', isDark);
+    document.body.classList.toggle('theme-light', !isDark);
     localStorage.setItem('openuml_theme', theme);
   }, [theme]);
 

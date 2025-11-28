@@ -23,6 +23,13 @@ body {
   position: relative;
 }
 
+body.theme-light {
+  background: radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.12), transparent 40%),
+    #f4f6fb;
+  color: #0f172a;
+}
+
 #root {
   width: 100vw;
   height: 100vh;
@@ -51,6 +58,14 @@ body::after {
   bottom: -140px;
   right: -40px;
   background: #f97316;
+}
+
+body.theme-light::before {
+  background: #bae6fd;
+}
+
+body.theme-light::after {
+  background: #fde68a;
 }
 
 /* Scrollbar styling */
@@ -84,10 +99,25 @@ body::after {
 .app-shell {
   position: relative;
   min-height: 100vh;
-  padding: 28px clamp(16px, 4vw, 48px);
+  padding: clamp(12px, 3vw, 32px);
   transition: background 0.4s ease;
   opacity: 0;
   transform: translateY(12px) scale(0.995);
+  overflow: auto;
+  display: flex;
+}
+
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 24px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.theme-light .app-shell::before {
+  border-color: rgba(15, 23, 42, 0.05);
 }
 
 .app-shell--ready {
@@ -176,7 +206,9 @@ body::after {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   padding: 12px;
+  overflow: hidden;
 }
 
 .app-resizer {
@@ -226,11 +258,18 @@ body::after {
   overflow: hidden;
 }
 
+.theme-light .logo-chip {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
 .preview-stage {
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 0 0 32px 32px;
+  overflow: auto;
 }
 
 .preview-stage--dark {
@@ -258,5 +297,18 @@ body::after {
   max-width: 100%;
   max-height: 100%;
   will-change: transform;
+}
+
+.theme-dark .monaco-editor,
+.theme-dark .monaco-editor .margin,
+.theme-dark .monaco-editor-background {
+  background-color: #050f1f !important;
+}
+
+.theme-light .monaco-editor,
+.theme-light .monaco-editor .margin,
+.theme-light .monaco-editor-background {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
