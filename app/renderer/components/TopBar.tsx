@@ -1,4 +1,5 @@
 import React from 'react';
+import logoMark from '../../assets/open_uml_logo.png';
 
 interface TopBarProps {
   onNew: () => void;
@@ -44,8 +45,8 @@ const TopBar: React.FC<TopBarProps> = ({
       ${theme === 'dark' ? 'bg-dark-surface border-dark-border' : 'bg-white border-gray-200'}
     `}>
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-cyan-400/70 to-blue-500/70 flex items-center justify-center shadow-lg shadow-cyan-500/30 border border-white/10">
-          <span className="text-lg font-black text-white">OU</span>
+        <div className="logo-chip">
+          <img src={logoMark} alt="Open UML logo" className="h-9 w-9 object-contain" />
         </div>
         <h1 className={`
           text-3xl font-black tracking-tight leading-none app-title ${theme === 'dark' ? 'text-white' : 'text-gray-900'}

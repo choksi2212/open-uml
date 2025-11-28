@@ -24,10 +24,14 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
   }, [data, format]);
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border ${theme === 'dark' ? 'bg-slate-900/70 border-white/5 shadow-[0_20px_60px_rgba(8,15,35,0.8)]' : 'bg-white border-slate-200 shadow-lg'}`}>
+    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl ${
+      theme === 'dark'
+        ? 'bg-[#051321]/95 border-amber-50/10 shadow-[0_25px_70px_rgba(3,10,20,0.85)]'
+        : 'bg-white border-slate-200 shadow-xl'
+    }`}>
       <div className={`
-        px-6 py-3 text-xs font-semibold uppercase tracking-[0.3em] border-b flex items-center justify-between
-        ${theme === 'dark' ? 'bg-slate-900/60 border-white/5 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-600'}
+        px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.35em] border-b flex items-center justify-between
+        ${theme === 'dark' ? 'bg-[#03101e]/80 border-amber-50/5 text-amber-100/80' : 'bg-slate-50 border-slate-200 text-slate-600'}
       `}>
         <span>Preview</span>
         <div className="flex items-center gap-2">
@@ -59,7 +63,7 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
       </div>
       <div className={`
         flex-1 overflow-auto p-8 preview-stage
-        ${theme === 'dark' ? 'bg-[#0b1222]' : 'bg-slate-50'}
+        ${theme === 'dark' ? 'preview-stage--dark' : 'preview-stage--light'}
       `}>
         <div className="preview-center">
         {isRendering ? (
