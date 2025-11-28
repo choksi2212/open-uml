@@ -24,7 +24,7 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
   }, [data, format]);
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl ${
+    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl h-full ${
       theme === 'dark'
         ? 'bg-[#051321]/95 border-amber-50/10 shadow-[0_25px_70px_rgba(3,10,20,0.85)]'
         : 'bg-white border-slate-200 shadow-xl'
