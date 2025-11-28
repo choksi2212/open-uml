@@ -66,15 +66,17 @@ function getPlantUMLPath(): string {
 
 function getJREPath(): string {
   if (isDev) {
-    return join(__dirname, '../../app/plantuml/jre/bin/java');
+    const devPath = process.platform === 'win32'
+      ? join(__dirname, '../../app/plantuml/jre/bin/java.exe')
+      : join(__dirname, '../../app/plantuml/jre/bin/java');
+    return devPath;
   }
   const platform = process.platform;
   const jreDir = join(process.resourcesPath, 'plantuml', 'jre');
   
-  if (platform === 'win32') {
-    return join(jreDir, 'bin', 'java.exe');
-  }
-  return join(jreDir, 'bin', 'java');
+  return platform === 'win32'
+    ? join(jreDir, 'bin', 'java.exe')
+    : join(jreDir, 'bin', 'java');
 }
 
 // IPC: Render PlantUML diagram
