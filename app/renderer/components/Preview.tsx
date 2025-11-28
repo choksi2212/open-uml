@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface PreviewProps {
   data: string | null;
@@ -9,6 +9,10 @@ interface PreviewProps {
 
 const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) => {
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleZoom = (delta: number) => {
     setZoom(prev => {
@@ -17,11 +21,61 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
     });
   };
 
-  const resetZoom = () => setZoom(1);
+  const resetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   useEffect(() => {
     setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, [data, format]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoom > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoom > 1) {
+      setPan({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        if (zoom > 1) {
+          setPan({
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y,
+          });
+        }
+      };
+
+      const handleGlobalMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [isDragging, dragStart, zoom]);
 
   return (
     <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl h-full ${
@@ -61,10 +115,19 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
           </div>
         </div>
       </div>
-      <div className={`
-        flex-1 overflow-auto p-8 preview-stage
+      <div 
+        ref={containerRef}
+        className={`
+        flex-1 overflow-hidden p-8 preview-stage
         ${theme === 'dark' ? 'preview-stage--dark' : 'preview-stage--light'}
-      `}>
+        ${zoom > 1 ? 'cursor-grab' : ''}
+        ${isDragging ? 'cursor-grabbing' : ''}
+      `}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
         <div className="preview-center">
         {isRendering ? (
           <div className="flex flex-col items-center gap-4">
@@ -77,15 +140,17 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
           <div
             className="preview-zoom"
             style={{
-              transform: `scale(${zoom})`,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: 'center center',
-              transition: 'transform 0.2s ease',
+              transition: isDragging ? 'none' : 'transform 0.2s ease',
+              cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
             }}
           >
             <img
               src={data}
               alt="Diagram preview"
               className="preview-img"
+              draggable={false}
             />
           </div>
         ) : (

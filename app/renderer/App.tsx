@@ -126,7 +126,7 @@ function App() {
 
     renderTimeoutRef.current = setTimeout(() => {
       renderDiagram(source);
-    }, 700);
+    }, 300);
 
     return () => {
       if (renderTimeoutRef.current) {
