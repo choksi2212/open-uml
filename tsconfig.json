@@ -20,7 +20,6 @@
       "@/*": ["./app/renderer/*"]
     }
   },
-  "include": ["app/**/*", "vite.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["app/**/*"]
 }
 
