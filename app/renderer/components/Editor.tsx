@@ -68,17 +68,20 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
     editorRef.current = editor;
     monacoRef.current = monaco;
 
+    // Register PlantUML language
+    monaco.languages.register({ id: 'plantuml' });
+
     // Configure PlantUML syntax highlighting
     monaco.languages.setMonarchTokensProvider('plantuml', {
       tokenizer: {
         root: [
-          [/@startuml|@enduml/, 'keyword'],
-          [/@start\w+|@end\w+/, 'keyword'],
+          [/\\bstartuml\\b|\\benduml\\b/i, 'keyword'],
+          [/\\bstart\\w*\\b|\\bend\\w*\\b/i, 'keyword'],
           [/->|<-|--|==|::/, 'operator'],
-          [/\[.*?\]/, 'string'],
+          [/\\[.*?\\]/, 'string'],
           [/".*?"/, 'string'],
-          [/'.*?'/, 'string'],
-          [/note\s+(left|right|top|bottom)/i, 'keyword'],
+          [/' .*?'/, 'string'],
+          [/note\\s+(left|right|top|bottom)/i, 'keyword'],
           [/title|header|footer|legend|skinparam/i, 'keyword'],
           [/class|interface|abstract|enum|package/i, 'type'],
           [/actor|participant|usecase|component/i, 'type'],
@@ -86,9 +89,6 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
         ],
       },
     });
-
-    // Register PlantUML language
-    monaco.languages.register({ id: 'plantuml' });
   };
 
   return (
