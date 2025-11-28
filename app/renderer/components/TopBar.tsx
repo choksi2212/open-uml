@@ -4,7 +4,7 @@ import logoMark from '../../assets/open_uml_logo.png';
 interface TopBarProps {
   onNew: () => void;
   onRender: () => void;
-  onExport: () => void;
+  onExport: (format?: 'svg' | 'png') => void;
   onOpen: () => void;
   onSave: () => void;
   onThemeToggle: () => void;
@@ -104,10 +104,10 @@ const TopBar: React.FC<TopBarProps> = ({
         </select>
 
         <button
-          onClick={onExport}
+          onClick={() => onExport()}
           disabled={!canExport}
           className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
-          title="Export Diagram (Ctrl+S)"
+          title="Export Diagram"
         >
           Export
         </button>

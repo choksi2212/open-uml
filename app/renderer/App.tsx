@@ -28,6 +28,7 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [paneRatio, setPaneRatio] = useState(52);
   const [isResizing, setIsResizing] = useState(false);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
 
   // Save source to localStorage
@@ -135,48 +136,132 @@ function App() {
     };
   }, [source, renderDiagram]);
 
-  const handleNew = () => {
+  const handleNew = useCallback(() => {
     setSource(DEFAULT_TEMPLATE);
+    setCurrentFilePath(null);
     setPreviewData(null);
     setError(null);
     setErrorPanelOpen(false);
-  };
+  }, []);
 
-  const handleExport = async () => {
-    if (!previewData) return;
-
-    const result = await window.electronAPI.exportDiagram({
-      data: previewData,
-      format,
-      defaultPath: `diagram.${format}`,
-    });
-
-    if (result.error) {
-      alert(`Export failed: ${result.error}`);
-    }
-  };
-
-  const handleOpen = async () => {
+  const handleOpen = useCallback(async () => {
     const result = await window.electronAPI.openFile();
     if (!result.canceled && result.content) {
       setSource(result.content);
+      setCurrentFilePath(result.path || null);
       setError(null);
       setErrorPanelOpen(false);
     } else if (result.error) {
       alert(`Open failed: ${result.error}`);
     }
-  };
+  }, []);
 
-  const handleSave = async () => {
-    const result = await window.electronAPI.saveFile(source);
-    if (result.error) {
+  const handleSave = useCallback(async () => {
+    const result = await window.electronAPI.saveFile(source, currentFilePath || undefined, !!currentFilePath);
+    if (!result.canceled && result.path) {
+      setCurrentFilePath(result.path);
+    } else if (result.error) {
       alert(`Save failed: ${result.error}`);
     }
-  };
+  }, [source, currentFilePath]);
+
+  const handleSaveAs = useCallback(async () => {
+    const result = await window.electronAPI.saveAsFile(source, currentFilePath || undefined);
+    if (!result.canceled && result.path) {
+      setCurrentFilePath(result.path);
+    } else if (result.error) {
+      alert(`Save As failed: ${result.error}`);
+    }
+  }, [source, currentFilePath]);
+
+  const handleExport = useCallback(async (exportFormat?: 'svg' | 'png') => {
+    if (!previewData) return;
+
+    const targetFormat = exportFormat || format;
+    const result = await window.electronAPI.exportDiagram({
+      data: previewData,
+      format: targetFormat,
+      defaultPath: `diagram.${targetFormat}`,
+    });
+
+    if (result.error) {
+      alert(`Export failed: ${result.error}`);
+    }
+  }, [previewData, format]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N: New
+      if (e.ctrlKey && e.key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        handleNew();
+      }
+      // Ctrl+S: Save
+      if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        handleSave();
+      }
+      // Ctrl+Shift+S: Save As
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        handleSaveAs();
+      }
+      // Ctrl+Shift+R: Render
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        renderDiagram(source);
+      }
+      // Ctrl+Shift+G: Export as SVG
+      if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        handleExport('svg');
+      }
+      // Ctrl+Shift+P: Export as PNG
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        handleExport('png');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNew, handleSave, handleSaveAs, handleExport, renderDiagram, source]);
+
+  // Menu actions
+  useEffect(() => {
+    const cleanup = window.electronAPI.onMenuAction((action: string) => {
+      switch (action) {
+        case 'new':
+          handleNew();
+          break;
+        case 'open':
+          handleOpen();
+          break;
+        case 'save':
+          handleSave();
+          break;
+        case 'save-as':
+          handleSaveAs();
+          break;
+        case 'render':
+          renderDiagram(source);
+          break;
+        case 'export-svg':
+          handleExport('svg');
+          break;
+        case 'export-png':
+          handleExport('png');
+          break;
+      }
+    });
+
+    return cleanup;
+  }, [handleNew, handleOpen, handleSave, handleSaveAs, handleExport, renderDiagram, source]);
 
   return (
     <div className={`app-shell ${theme === 'dark' ? 'theme-dark' : 'theme-light'} ${isReady ? 'app-shell--ready' : ''}`}>
@@ -246,7 +331,7 @@ function App() {
 
       <footer className="app-footer">
         <p className="footer-heading">
-          Crafted with care by <span>Manas Choksi</span>
+          Created for Students by <span>Manas Choksi</span>
         </p>
         <div className="footer-links">
           <a href="https://www.github.com/choksi2212" target="_blank" rel="noreferrer">

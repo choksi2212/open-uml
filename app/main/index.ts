@@ -1,10 +1,11 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
+let currentFilePath: string | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -40,12 +41,95 @@ function createWindow() {
   });
 }
 
+function createMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'new');
+          },
+        },
+        {
+          label: 'Open',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'open');
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'save');
+          },
+        },
+        {
+          label: 'Save As',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'save-as');
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Render',
+          accelerator: 'CmdOrCtrl+Shift+R',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'render');
+          },
+        },
+        {
+          label: 'Export as SVG',
+          accelerator: 'CmdOrCtrl+Shift+G',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'export-svg');
+          },
+        },
+        {
+          label: 'Export as PNG',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            mainWindow?.webContents.send('menu-action', 'export-png');
+          },
+        },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'FAQ',
+          click: () => {
+            shell.openExternal('https://github.com/choksi2212/open-uml');
+          },
+        },
+        {
+          label: 'Contact',
+          click: () => {
+            shell.openExternal('mailto:manaschoksiwork@gmail.com?subject=Open%20UML%20Support');
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 app.whenReady().then(() => {
   createWindow();
+  createMenu();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      createMenu();
     }
   });
 });
@@ -217,6 +301,7 @@ ipcMain.handle('open-file', async () => {
 
   try {
     const content = await readFile(result.filePaths[0], 'utf-8');
+    currentFilePath = result.filePaths[0];
     return { canceled: false, content, path: result.filePaths[0] };
   } catch (error: any) {
     return { canceled: false, error: error.message };
@@ -224,9 +309,39 @@ ipcMain.handle('open-file', async () => {
 });
 
 // IPC: Save file
-ipcMain.handle('save-file', async (_, { content, defaultPath }) => {
+ipcMain.handle('save-file', async (_, { content, defaultPath, useExistingPath }) => {
+  let filePath = useExistingPath && currentFilePath ? currentFilePath : null;
+
+  if (!filePath) {
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: defaultPath || currentFilePath || 'diagram.puml',
+      filters: [
+        { name: 'PlantUML Files', extensions: ['puml'] },
+        { name: 'Text Files', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+
+    if (result.canceled) {
+      return { canceled: true };
+    }
+
+    filePath = result.filePath!;
+  }
+
+  try {
+    await writeFile(filePath, content, 'utf-8');
+    currentFilePath = filePath;
+    return { canceled: false, path: filePath };
+  } catch (error: any) {
+    return { canceled: false, error: error.message };
+  }
+});
+
+// IPC: Save As file
+ipcMain.handle('save-as-file', async (_, { content, defaultPath }) => {
   const result = await dialog.showSaveDialog(mainWindow!, {
-    defaultPath: defaultPath || 'diagram.puml',
+    defaultPath: defaultPath || currentFilePath || 'diagram.puml',
     filters: [
       { name: 'PlantUML Files', extensions: ['puml'] },
       { name: 'Text Files', extensions: ['txt'] },
@@ -240,6 +355,7 @@ ipcMain.handle('save-file', async (_, { content, defaultPath }) => {
 
   try {
     await writeFile(result.filePath!, content, 'utf-8');
+    currentFilePath = result.filePath!;
     return { canceled: false, path: result.filePath };
   } catch (error: any) {
     return { canceled: false, error: error.message };
