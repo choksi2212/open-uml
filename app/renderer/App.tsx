@@ -197,7 +197,7 @@ function App() {
           onFormatChange={setFormat}
         />
         
-        <div className="workspace">
+        <div className="workspace" aria-label="Editor and preview workspace">
           <div
             className="workspace-grid"
             ref={workspaceRef}
@@ -243,6 +243,23 @@ function App() {
           />
         )}
       </div>
+
+      <footer className="app-footer">
+        <p className="footer-heading">
+          Crafted with care by <span>Manas Choksi</span>
+        </p>
+        <div className="footer-links">
+          <a href="https://www.github.com/choksi2212" target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          <a href="https://www.linkedin.com/in/manas-choksi" target="_blank" rel="noreferrer">
+            LinkedIn
+          </a>
+          <a href="https://www.instagram.com/manas_choksi_22" target="_blank" rel="noreferrer">
+            Instagram
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
