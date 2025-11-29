@@ -45,6 +45,7 @@
   "build": {
     "appId": "com.openuml.app",
     "productName": "Open UML",
+    "publish": null,
     "directories": {
       "output": "build"
     },
