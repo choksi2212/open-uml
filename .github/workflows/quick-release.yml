@@ -5,12 +5,11 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,6 +44,8 @@ jobs:
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
           name: Open UML ${{ steps.get_version.outputs.version }}
@@ -68,6 +69,8 @@ jobs:
   build-windows:
     runs-on: windows-latest
     needs: create-release
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -98,6 +101,8 @@ jobs:
 
       - name: Upload Windows installer to release
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/*.exe
           tag_name: ${{ steps.get_version.outputs.version }}
