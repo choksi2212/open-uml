@@ -40,10 +40,10 @@ Perfect for students, developers, and technical writers who need a reliable, fas
 ## 📸 Screenshots
 
 ### Dark Theme
-![Dark Theme Preview](docs/screenshots/dark-theme.png)
+![Dark Theme Preview](dark.png)
 
 ### Light Theme
-![Light Theme Preview](docs/screenshots/light-theme.png)
+![Light Theme Preview](light.png)
 
 ---
 
