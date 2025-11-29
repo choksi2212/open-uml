@@ -40,6 +40,7 @@ jobs:
           fi
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_version.outputs.version }}
@@ -49,7 +50,8 @@ jobs:
             
             ## 📦 Downloads
             
-            Windows installer will be uploaded shortly. Check back in a few minutes!
+            - 🪟 **Windows**: See artifacts below
+            - 🍎 **macOS**: Coming soon
             
             ## 🚀 Installation
             
@@ -60,3 +62,37 @@ jobs:
           draft: false
           prerelease: false
 
+  build-windows:
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build Windows installer
+        run: npm run dist
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          $VERSION = "${{ github.ref }}".Replace("refs/tags/", "")
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $VERSION"
+
+      - name: Upload Windows installer to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/*.exe
+          tag_name: ${{ steps.get_version.outputs.version }}
