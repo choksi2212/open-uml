@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-01-29
+
+### 🐞 Fixes
+
+- Fixed pan/drag functionality for zoomed previews in production build
+- Fixed workspace layout to ensure editor and preview fit on single screen
+- Fixed CSS overflow issues that prevented panning when zoomed in
+- Improved preview image auto-fitting for large diagrams
+- Added proper overflow handling for editor scrolling
+
+### 🔧 Technical
+
+- Updated CSS to use `overflow: hidden` for preview-stage (required for panning)
+- Added `user-select: none` to prevent text selection during drag
+- Fixed workspace container overflow handling
+- Improved production build CSS optimizations
+
 ## [1.0.0] - 2025-01-29
 
 ### ✨ Features

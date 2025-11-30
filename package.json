@@ -1,6 +1,6 @@
 {
   "name": "open-uml",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A completely offline, smooth, modern PlantUML editor with bundled rendering engine",
   "main": "dist-electron/main/index.js",
   "author": "Open UML",
