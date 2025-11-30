@@ -183,6 +183,7 @@ body.theme-light::after {
   display: flex;
   height: clamp(420px, calc(100vh - 320px), 620px);
   max-height: 660px;
+  overflow: hidden;
 }
 
 .workspace-grid {
