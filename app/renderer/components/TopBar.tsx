@@ -15,7 +15,8 @@ import { IconButton } from './ui/IconButton';
 import { Select } from './ui/Select';
 import { Separator } from './ui/Separator';
 import { Tooltip } from './ui/Tooltip';
-import logoMark from '../../assets/open_uml_logo.png';
+import monogramLight from '../../assets/_monogram-light.png';
+import monogramDark from '../../assets/_monogram-dark.png';
 
 interface TopBarProps {
   onNew: () => void;
@@ -64,7 +65,14 @@ export function TopBar({
     >
       {/* Left: brand + product name */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <img src={logoMark} alt="" className="h-6 w-6 rounded" aria-hidden />
+        <img
+          src={theme === 'dark' ? monogramDark : monogramLight}
+          alt=""
+          className="h-6 w-6 rounded shrink-0"
+          aria-hidden
+          width={24}
+          height={24}
+        />
         <span className="text-sm font-semibold tracking-tight text-fg">Open UML</span>
         <span className="hidden sm:inline text-xs text-fg-subtle">offline PlantUML editor</span>
       </div>

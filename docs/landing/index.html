@@ -57,12 +57,13 @@
     .wrap { max-width: 880px; margin: 0 auto; padding: clamp(40px, 8vw, 120px) clamp(20px, 5vw, 40px); }
 
     header { display: flex; align-items: center; gap: 10px; margin-bottom: 64px; }
-    .logo {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: var(--bg-elevated); border: 1px solid var(--border);
-      display: inline-flex; align-items: center; justify-content: center;
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      text-decoration: none; color: inherit;
     }
-    .logo svg { width: 22px; height: 22px; color: var(--accent); }
+    .logo-mark {
+      width: 32px; height: 32px; display: block;
+    }
     .wordmark { font-weight: 600; letter-spacing: -0.01em; }
 
     h1 {
@@ -138,17 +139,20 @@
 <body>
   <div class="wrap">
     <header>
-      <span class="logo" aria-hidden>
-        <!-- Mark placeholder. Replace this inline SVG with the real logo
-             generated from the LOGOS brief. -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="6" cy="6" r="3" />
-          <circle cx="18" cy="6" r="3" />
-          <circle cx="18" cy="18" r="3" />
-          <path d="M6 6 L18 6 L18 18" />
-        </svg>
-      </span>
-      <span class="wordmark">Open UML</span>
+      <a href="/" class="brand" aria-label="Open UML home">
+        <picture>
+          <source srcset="../logo-family/svg/dark/core-mark.svg" media="(prefers-color-scheme: dark)" />
+          <img
+            class="logo-mark"
+            src="../logo-family/svg/light/core-mark.svg"
+            alt=""
+            width="32"
+            height="32"
+            aria-hidden
+          />
+        </picture>
+        <span class="wordmark">Open UML</span>
+      </a>
     </header>
 
     <h1>An offline PlantUML editor that actually stays out of your way.</h1>

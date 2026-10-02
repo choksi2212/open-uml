@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Open UML Logo](app/assets/open_uml_logo.png)
+![Open UML Logo](logo-family/png/light/wordmark-full-1600.png)
 
 **A completely offline, smooth, modern PlantUML editor with bundled rendering engine**
 
