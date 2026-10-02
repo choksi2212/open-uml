@@ -8,20 +8,21 @@ files:
   - app/assets/**/*
   - package.json
 asar: true
-# plantuml.jar + plantuml-pdf.jar + the per-OS JRE go to extraResources so
-# the JRE binaries are not packed inside the asar archive (they must be
-# directly executable by the operating system).
+# plantuml.jar + the version-matched companion jar are platform-independent.
+# The JRE is platform-specific: each platform section packs only its own
+# folder, so a Windows JRE can never land in the macOS DMG again.
 extraResources:
   - from: app/plantuml/plantuml.jar
     to: plantuml/plantuml.jar
   - from: app/plantuml/plantuml-pdf-1.2025.10.jar
     to: plantuml/plantuml-pdf.jar
-  - from: app/plantuml/jre-win
-    to: plantuml/jre-win
 win:
   target: nsis
   icon: app/assets/icon.ico
   artifactName: "OpenUML-Setup-${version}.exe"
+  extraResources:
+    - from: app/plantuml/jre-win
+      to: plantuml/jre-win
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
@@ -38,3 +39,6 @@ mac:
   identity: null
   extendInfo:
     LSMinimumSystemVersion: "10.15"
+  extraResources:
+    - from: app/plantuml/jre-mac
+      to: plantuml/jre-mac

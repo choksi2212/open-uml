@@ -63,17 +63,19 @@
       {
         "from": "app/plantuml/plantuml-pdf-1.2025.10.jar",
         "to": "plantuml/plantuml-pdf.jar"
-      },
-      {
-        "from": "app/plantuml/jre-win",
-        "to": "plantuml/jre-win"
       }
     ],
     "win": {
       "target": "nsis",
       "icon": "app/assets/icon.ico",
       "artifactName": "OpenUML-Setup-${version}.exe",
-      "publisherName": "Open UML"
+      "publisherName": "Open UML",
+      "extraResources": [
+        {
+          "from": "app/plantuml/jre-win",
+          "to": "plantuml/jre-win"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -88,7 +90,13 @@
       "identity": null,
       "extendInfo": {
         "LSMinimumSystemVersion": "10.15"
-      }
+      },
+      "extraResources": [
+        {
+          "from": "app/plantuml/jre-mac",
+          "to": "plantuml/jre-mac"
+        }
+      ]
     }
   }
 }
