@@ -441,7 +441,6 @@ function App() {
       })),
     ];
     // Intentionally omit `source` from deps - read via ref to avoid rebuilding on every keystroke.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleNew, handleOpen, handleSave, handleSaveAs, handleExport, handleExportPdf, handleCopyImage, renderDiagram, toggleTheme, editorSettings, applyTemplate]);
 
   // --- Keyboard shortcuts --------------------------------------------------

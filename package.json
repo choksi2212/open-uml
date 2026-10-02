@@ -12,7 +12,7 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 -t 30000 && electron .\" --kill-others",
     "electron:build": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

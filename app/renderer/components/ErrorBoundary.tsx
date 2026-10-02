@@ -23,9 +23,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // Keep this for when we add a crash reporter (Sentry / a small file
-    // logger) in Phase 6. For now, console is enough to keep devs sane.
-    // eslint-disable-next-line no-console
+    // Hook left for a future crash reporter; today the browser's devtools
+    // console is the destination.
     console.error('[ErrorBoundary]', error, info);
   }
 

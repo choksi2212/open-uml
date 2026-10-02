@@ -1,9 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, nativeImage, net } from 'electron';
 import { spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { readFile, writeFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import { createWriteStream } from 'fs';
+import { existsSync, createWriteStream } from 'fs';
 import {
   splitDiagrams,
   parsePlantumlError,
@@ -488,7 +487,6 @@ ipcMain.handle('read-file-by-path', async (_, filePath: string) => {
 const UPDATE_URL = 'https://api.github.com/repos/choksi2212/open-uml/releases/latest';
 
 async function fetchLatestRelease(): Promise<{ tag: string; url: string; notes: string } | null> {
-  const { net } = require('electron');
   try {
     const res = await net.fetch(UPDATE_URL, {
       headers: { 'User-Agent': 'OpenUML-UpdateCheck' },
