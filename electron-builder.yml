@@ -36,25 +36,8 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  # File associations - NSIS registers Open UML as a handler for
-  # PlantUML files at install time, so double-click opens the app.
-  fileAssociations:
-    - ext: puml
-      name: PlantUML Diagram
-      description: PlantUML Source File
-      role: Editor
-    - ext: plantuml
-      name: PlantUML Diagram
-      description: PlantUML Source File
-      role: Editor
-    - ext: iuml
-      name: PlantUML Diagram
-      description: PlantUML Include File
-      role: Editor
-    - ext: pu
-      name: PlantUML Diagram
-      description: PlantUML Source File
-      role: Editor
+# fileAssociations live at the top of package.json's `build` block -
+# that's the right scope (cross-platform), not under `nsis`.
 mac:
   target: dmg
   icon: app/assets/icon.icns
