@@ -15,8 +15,8 @@ import { IconButton } from './ui/IconButton';
 import { Select } from './ui/Select';
 import { Separator } from './ui/Separator';
 import { Tooltip } from './ui/Tooltip';
-import wordmarkLight from '../../assets/_wordmark-light.svg';
-import wordmarkDark from '../../assets/_wordmark-dark.svg';
+import wordmarkLight from '../../assets/_lockup-light.svg';
+import wordmarkDark from '../../assets/_lockup-dark.svg';
 
 interface TopBarProps {
   onNew: () => void;
