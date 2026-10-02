@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DiagramRenderPayload } from '../../preload';
 
 interface PreviewProps {
   data: string | null;
   isRendering: boolean;
   format: 'svg' | 'png';
   theme: 'dark' | 'light';
+  diagrams?: DiagramRenderPayload[] | null;
+  activeDiagram?: number;
+  onSelectDiagram?: (index: number) => void;
 }
 
-const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) => {
+const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme, diagrams, activeDiagram = 0, onSelectDiagram }) => {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -77,6 +81,8 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
     }
   }, [isDragging, dragStart, zoom]);
 
+  const showTabs = !!diagrams && diagrams.length > 1;
+
   return (
     <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl h-full ${
       theme === 'dark'
@@ -115,6 +121,32 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
           </div>
         </div>
       </div>
+
+      {showTabs && (
+        <div className={`flex items-stretch gap-1 px-2 pt-2 flex-wrap border-b ${theme === 'dark' ? 'border-amber-50/5' : 'border-slate-200'}`}>
+          {diagrams!.map((d, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelectDiagram?.(i)}
+              className={`px-3 py-1.5 text-xs rounded-t-md transition-colors ${
+                i === activeDiagram
+                  ? theme === 'dark'
+                    ? 'bg-[#0a2135] text-amber-100 border-t border-x border-amber-50/10'
+                    : 'bg-slate-100 text-slate-800 border-t border-x border-slate-200'
+                  : theme === 'dark'
+                    ? 'text-gray-400 hover:text-gray-200'
+                    : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title={d.ok ? 'Diagram rendered' : (d.error?.shortMessage || 'Rendering failed')}
+            >
+              Diagram {i + 1}
+              {!d.ok && <span className="ml-1.5 text-red-400">&#9888;</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div 
         ref={containerRef}
         className={`
@@ -133,7 +165,7 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
             <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-              Rendering diagram...
+              Rendering diagram{showTabs ? 's' : ''}...
             </p>
           </div>
         ) : data ? (
@@ -159,7 +191,11 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
             ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}
           `}>
             <p className="text-lg mb-2">No preview available</p>
-            <p className="text-sm">Start typing PlantUML code to see the diagram</p>
+            <p className="text-sm">
+              {showTabs
+                ? 'This diagram failed to render - check the error panel'
+                : 'Start typing PlantUML code to see the diagram'}
+            </p>
           </div>
         )}
         </div>
@@ -169,4 +205,3 @@ const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme }) =
 };
 
 export default Preview;
-

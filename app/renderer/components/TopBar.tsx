@@ -5,9 +5,12 @@ interface TopBarProps {
   onNew: () => void;
   onRender: () => void;
   onExport: (format?: 'svg' | 'png') => void;
+  onExportPdf: () => void;
+  onCopyImage: () => void;
   onOpen: () => void;
   onSave: () => void;
   onThemeToggle: () => void;
+  onPaletteOpen: () => void;
   theme: 'dark' | 'light';
   canExport: boolean;
   isRendering: boolean;
@@ -19,9 +22,12 @@ const TopBar: React.FC<TopBarProps> = ({
   onNew,
   onRender,
   onExport,
+  onExportPdf,
+  onCopyImage,
   onOpen,
   onSave,
   onThemeToggle,
+  onPaletteOpen,
   theme,
   canExport,
   isRendering,
@@ -86,7 +92,7 @@ const TopBar: React.FC<TopBarProps> = ({
           onClick={onRender}
           disabled={isRendering}
           className={`${buttonClass} ${isRendering ? disabledClass : ''}`}
-          title="Render Diagram (Ctrl+R)"
+          title="Render Diagram (Ctrl+Shift+R)"
         >
           {isRendering ? 'Rendering...' : 'Render'}
         </button>
@@ -112,14 +118,40 @@ const TopBar: React.FC<TopBarProps> = ({
           Export
         </button>
 
+        <button
+          onClick={onExportPdf}
+          disabled={!canExport}
+          className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
+          title="Export as PDF"
+        >
+          PDF
+        </button>
+
+        <button
+          onClick={onCopyImage}
+          disabled={!canExport}
+          className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
+          title="Copy Image to Clipboard (Ctrl+Shift+C)"
+        >
+          Copy
+        </button>
+
         <div className="w-px h-6 bg-gray-300 dark:bg-dark-border mx-1" />
+
+        <button
+          onClick={onPaletteOpen}
+          className={buttonClass}
+          title="Command Palette (Ctrl+Shift+K)"
+        >
+          &#8964; Commands
+        </button>
 
         <button
           onClick={onThemeToggle}
           className={buttonClass}
-          title="Toggle Theme (Ctrl+T)"
+          title="Toggle Theme"
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
         </button>
       </div>
     </div>
@@ -127,4 +159,3 @@ const TopBar: React.FC<TopBarProps> = ({
 };
 
 export default TopBar;
-

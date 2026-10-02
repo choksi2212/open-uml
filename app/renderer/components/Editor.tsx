@@ -8,58 +8,42 @@ interface EditorProps {
   onChange: (value: string) => void;
   error: RenderDiagramResponse['error'] | null;
   theme: 'dark' | 'light';
+  wordWrap?: 'on' | 'off';
+  minimap?: boolean;
+  fontSize?: number;
+  onCursorPosition?: (line: number, column: number) => void;
 }
 
-const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) => {
-  const editorRef = useRef<Monaco | null>(null);
+const CodeEditor: React.FC<EditorProps> = ({
+  value,
+  onChange,
+  error,
+  theme,
+  wordWrap = 'off',
+  minimap = true,
+  fontSize = 14,
+  onCursorPosition,
+}) => {
+  const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
   useEffect(() => {
-    // Handle keyboard shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        // New diagram handled by parent
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
-        e.preventDefault();
-        // Render handled by parent
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        // Save handled by parent
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
-        e.preventDefault();
-        // Theme toggle handled by parent
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (monacoRef.current && editorRef.current && error) {
-      const markers = [{
-        severity: monacoRef.current.MarkerSeverity.Error,
-        startLineNumber: error.line || 1,
-        startColumn: 1,
-        endLineNumber: error.line || 1,
-        endColumn: 1000,
-        message: error.shortMessage,
-      }];
+    if (monacoRef.current && editorRef.current) {
+      const markers = error
+        ? [{
+            severity: monacoRef.current.MarkerSeverity.Error,
+            startLineNumber: error.line || 1,
+            startColumn: 1,
+            endLineNumber: error.line || 1,
+            endColumn: 1000,
+            message: error.shortMessage,
+          }]
+        : [];
 
       monacoRef.current.editor.setModelMarkers(
         editorRef.current.getModel()!,
         'plantuml',
         markers
-      );
-    } else if (monacoRef.current && editorRef.current) {
-      monacoRef.current.editor.setModelMarkers(
-        editorRef.current.getModel()!,
-        'plantuml',
-        []
       );
     }
   }, [error]);
@@ -89,6 +73,14 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
         ],
       },
     });
+
+    // Report cursor position for the status bar.
+    editor.onDidChangeCursorPosition(() => {
+      const pos = editor.getPosition();
+      if (pos && onCursorPosition) {
+        onCursorPosition(pos.lineNumber, pos.column);
+      }
+    });
   };
 
   return (
@@ -111,10 +103,10 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
           onChange={(val) => onChange(val || '')}
           theme={theme === 'dark' ? 'vs-dark' : 'light'}
           options={{
-            minimap: { enabled: false },
-            fontSize: 14,
+            minimap: { enabled: minimap },
+            fontSize,
             lineNumbers: 'on',
-            wordWrap: 'on',
+            wordWrap,
             automaticLayout: true,
             scrollBeyondLastLine: false,
             tabSize: 2,
@@ -133,4 +125,3 @@ const CodeEditor: React.FC<EditorProps> = ({ value, onChange, error, theme }) =>
 };
 
 export default CodeEditor;
-

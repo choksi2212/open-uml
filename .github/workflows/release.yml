@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v1.0.1)'
+        description: 'Version tag (e.g., v1.1.0)'
         required: true
 
 permissions:
@@ -60,6 +60,30 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # v1.0.1 and earlier packed the Windows JRE (committed at
+      # app/plantuml/jre) into the macOS DMG, so the app could never run on
+      # macOS and Gatekeeper reported it as damaged. The mac build now ships
+      # a real macOS JRE fetched at build time into app/plantuml/jre-mac,
+      # which the main process picks per-OS (jre-win / jre-mac).
+      - name: Fetch macOS JRE (Temurin 25, x64+aarch64 universal)
+        run: |
+          set -eu
+          mkdir -p app/plantuml/jre-mac
+          # Temurin publishes separate x64 and aarch64 tarballs; the runner is
+          # arm64, and the DMG it produces runs on this host. For a universal
+          # app, merge both JDK layouts over one tree (bin/java is a launcher
+          # that picks the right libjvm at runtime when both lib dirs exist
+          # only under separate Contents/Home trees - so instead we ship the
+          # runner-arch build; GitHub's macos-latest is arm64).
+          curl -sSL -o /tmp/jre-mac.tar.gz \
+            "https://api.adoptium.net/v3/binary/latest/25/ga/mac/aarch64/jre/hotspot/normal/eclipse"
+          tar -xzf /tmp/jre-mac.tar.gz -C /tmp
+          JRE_DIR=$(ls -d /tmp/jdk*-jre/Contents/Home | head -n 1)
+          # Copy the JRE tree so that app/plantuml/jre-mac/bin/java exists
+          rsync -a "$JRE_DIR/" app/plantuml/jre-mac/
+          chmod +x app/plantuml/jre-mac/bin/java
+          app/plantuml/jre-mac/bin/java -version
+
       - name: Install dependencies
         run: npm ci
 
@@ -70,6 +94,24 @@ jobs:
         run: npm run dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify the DMG carries a macOS JRE, not a Windows one
+        run: |
+          set -eu
+          DMG=$(ls build/*.dmg | head -n 1)
+          hdiutil attach "$DMG" -mountpoint /Volumes/OpenUMLCheck -nobrowse -readonly
+          APP="/Volumes/OpenUMLCheck/Open UML.app"
+          JAVA="$APP/Contents/Resources/plantuml/jre-mac/bin/java"
+          if [ ! -f "$JAVA" ]; then
+            echo "::error::macOS JRE missing from the DMG"; hdiutil detach /Volumes/OpenUMLCheck; exit 1
+          fi
+          FILE_KIND=$(file -b "$JAVA")
+          echo "java binary: $FILE_KIND"
+          if ! echo "$FILE_KIND" | grep -q "Mach-O"; then
+            echo "::error::DMG does not contain a Mach-O java binary - aborting the release"
+            hdiutil detach /Volumes/OpenUMLCheck; exit 1
+          fi
+          hdiutil detach /Volumes/OpenUMLCheck
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -103,7 +145,7 @@ jobs:
         run: |
           if [ -f CHANGELOG.md ]; then
             VERSION="${{ steps.get_version.outputs.version }}"
-            CHANGELOG=$(awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | sed '$d' || echo "✨ New release")
+            CHANGELOG=$(awk "/^## \\[$VERSION\\]/,/^## \\[/" CHANGELOG.md | sed '$d' || echo "✨ New release")
             echo "changelog<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGELOG" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
@@ -149,6 +191,7 @@ jobs:
             1. Download and open the `.dmg` file
             2. Drag Open UML to Applications
             3. Launch from Applications or Spotlight
+            4. If macOS says the app is from an unidentified developer: right-click Open UML in Applications and choose **Open** (the app is ad-hoc signed; this is the normal unsigned-app flow)
           files: |
             artifacts/windows/*.exe
             artifacts/macos/*.dmg

@@ -1,14 +1,14 @@
-export interface DiagramTemplate {
+export interface Template {
   name: string;
   category: string;
-  code: string;
+  source: string;
 }
 
-export const templates: DiagramTemplate[] = [
+export const TEMPLATES: Template[] = [
   {
     name: 'Sequence Diagram',
-    category: 'Sequence',
-    code: `@startuml
+    category: 'Behavioral',
+    source: `@startuml
 Alice -> Bob: Authentication Request
 Bob --> Alice: Authentication Response
 
@@ -18,8 +18,8 @@ Alice <-- Bob: another authentication Response
   },
   {
     name: 'Class Diagram',
-    category: 'Class',
-    code: `@startuml
+    category: 'Structural',
+    source: `@startuml
 class Animal {
   - name: String
   + getName(): String
@@ -42,8 +42,8 @@ Animal <|-- Cat
   },
   {
     name: 'Activity Diagram',
-    category: 'Activity',
-    code: `@startuml
+    category: 'Behavioral',
+    source: `@startuml
 start
 :Login;
 if (Login successful?) then (yes)
@@ -58,8 +58,8 @@ stop
   },
   {
     name: 'Use Case Diagram',
-    category: 'Use Case',
-    code: `@startuml
+    category: 'Behavioral',
+    source: `@startuml
 left to right direction
 actor User
 rectangle System {
@@ -72,8 +72,8 @@ rectangle System {
   },
   {
     name: 'Component Diagram',
-    category: 'Component',
-    code: `@startuml
+    category: 'Structural',
+    source: `@startuml
 package "Frontend" {
   [React App]
   [UI Components]
@@ -90,8 +90,8 @@ package "Backend" {
   },
   {
     name: 'State Diagram',
-    category: 'State',
-    code: `@startuml
+    category: 'Behavioral',
+    source: `@startuml
 [*] --> Idle
 Idle --> Running : Start
 Running --> Paused : Pause
@@ -99,5 +99,85 @@ Paused --> Running : Resume
 Running --> [*] : Stop
 @enduml`,
   },
-];
+  {
+    name: 'ER Diagram',
+    category: 'Structural',
+    source: `@startuml
+entity "Customer" as customer {
+  *customer_id : number
+  --
+  *name : string
+  email : string
+}
 
+entity "Order" as order {
+  *order_id : number
+  --
+  *customer_id : number <<FK>>
+  total : decimal
+}
+
+customer ||--o{ order : places
+@enduml`,
+  },
+  {
+    name: 'Mind Map',
+    category: 'Other',
+    source: `@startmindmap
+* Open UML
+** Diagrams
+*** Sequence
+*** Class
+*** Activity
+** Export
+*** PNG / SVG / PDF
+@endmindmap`,
+  },
+  {
+    name: 'Gantt Chart',
+    category: 'Other',
+    source: `@startgantt
+projectscale weekly
+[Prototype design] lasts 2 weeks
+[Implementation] lasts 4 weeks
+[Implementation] starts at [Prototype design]'s end
+[Test] lasts 1 week
+[Test] starts at [Implementation]'s end
+@endgantt`,
+  },
+  {
+    name: 'C4 Container Diagram',
+    category: 'Architecture',
+    source: `@startuml
+!include <C4/C4_Container>
+Person(user, "Student", "Draws UML diagrams")
+System(openuml, "Open UML", "Offline PlantUML editor")
+Rel(user, openuml, "Uses")
+@enduml`,
+  },
+  {
+    name: 'Deployment Diagram',
+    category: 'Structural',
+    source: `@startuml
+node "Client" {
+  [Browser]
+}
+
+node "Server" {
+  [App Server]
+  [Database]
+}
+
+[Browser] --> [App Server] : HTTPS
+[App Server] --> [Database] : SQL
+@enduml`,
+  },
+  {
+    name: 'Sequence (with math)',
+    category: 'Behavioral',
+    source: `@startuml
+Alice -> Bob: Compute <math>int_0^1 f(x)dx</math>
+Bob --> Alice: Result: <math>sqrt(2)</math>
+@enduml`,
+  },
+];
