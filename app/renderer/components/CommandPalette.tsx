@@ -1,25 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Search } from 'lucide-react';
+import { cn } from '../lib/cn';
 
 export interface PaletteAction {
   id: string;
   label: string;
   run: () => void;
-  keys?: string;
+  shortcut?: string;
 }
 
 interface CommandPaletteProps {
-  theme: 'dark' | 'light';
   actions: PaletteAction[];
   onClose: () => void;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ theme, actions, onClose }) => {
+export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = actions.filter((a) => a.label.toLowerCase().includes(query.toLowerCase()));
+  const safeActive = Math.min(activeIndex, Math.max(0, filtered.length - 1));
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -31,91 +33,94 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ theme, actions, onClose
 
   const runAction = (action: PaletteAction) => {
     onClose();
-    // Let the palette unmount before the action potentially opens dialogs.
     setTimeout(() => action.run(), 0);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       onClose();
+      return;
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => Math.min(filtered.length - 1, i + 1));
+      return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIndex((i) => Math.max(0, i - 1));
+      return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[activeIndex]) runAction(filtered[activeIndex]);
+      const action = filtered[safeActive];
+      if (action) runAction(action);
     }
   };
 
   useEffect(() => {
-    const item = listRef.current?.children[activeIndex] as HTMLElement | undefined;
+    const item = listRef.current?.children[safeActive] as HTMLElement | undefined;
     item?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex]);
-
-  const panelClass = theme === 'dark'
-    ? 'bg-dark-surface border-dark-border text-gray-100'
-    : 'bg-white border-gray-300 text-gray-900';
+  }, [safeActive]);
 
   return (
     <div
-      className="fixed inset-0 flex items-start justify-center pt-[15vh] z-50 bg-black/40"
-      onKeyDown={handleKeyDown}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/40 animate-fade-in"
+      onKeyDown={handleKey}
       onClick={onClose}
     >
       <div
-        className={`w-[520px] max-w-[90vw] rounded-lg border shadow-2xl overflow-hidden ${panelClass}`}
+        className={cn(
+          'w-[520px] max-w-[90vw] rounded-md overflow-hidden',
+          'bg-bg-elevated border border-border shadow-overlay',
+          'animate-scale-in',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type a command..."
-          className={`w-full px-4 py-3 outline-none border-b ${
-            theme === 'dark' ? 'bg-dark-surface border-dark-border placeholder-gray-500' : 'bg-white border-gray-200 placeholder-gray-400'
-          }`}
-        />
-        <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
-          {filtered.length === 0 && (
-            <div className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-              No matching command
-            </div>
-          )}
-          {filtered.map((action, i) => (
-            <button
-              key={action.id}
-              className={`w-full text-left px-4 py-2 text-sm flex justify-between items-center gap-3 ${
-                i === activeIndex
-                  ? theme === 'dark' ? 'bg-slate-600/60' : 'bg-gray-100'
-                  : ''
-              }`}
-              onMouseEnter={() => setActiveIndex(i)}
-              onClick={() => runAction(action)}
-            >
-              <span>{action.label}</span>
-              {action.keys && (
-                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {action.keys}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 px-3 h-10 border-b border-border">
+          <Search className="h-4 w-4 text-fg-subtle shrink-0" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Type a command…"
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-fg-subtle"
+          />
+          <kbd className="px-1.5 py-0.5 text-[10px] rounded border border-border text-fg-subtle">
+            esc
+          </kbd>
         </div>
-        <div className={`px-4 py-2 text-xs border-t flex gap-4 ${theme === 'dark' ? 'border-dark-border text-gray-500' : 'border-gray-200 text-gray-400'}`}>
-          <span>&uarr;&darr; navigate</span>
-          <span>&crarr; run</span>
+        <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-4 text-sm text-fg-subtle text-center">No matching command</div>
+          ) : (
+            filtered.map((action, i) => (
+              <button
+                key={action.id}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-sm flex justify-between items-center gap-3',
+                  i === safeActive ? 'bg-surface-1' : 'hover:bg-surface-1',
+                )}
+                onMouseEnter={() => setActiveIndex(i)}
+                onClick={() => runAction(action)}
+              >
+                <span>{action.label}</span>
+                {action.shortcut && (
+                  <kbd className="px-1.5 py-0.5 text-[10px] rounded border border-border text-fg-subtle font-mono">
+                    {action.shortcut}
+                  </kbd>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+        <div className="px-3 py-1.5 text-[11px] border-t border-border text-fg-subtle flex gap-3">
+          <span>↑↓ navigate</span>
+          <span>↵ run</span>
           <span>esc close</span>
         </div>
       </div>
     </div>
   );
-};
-
-export default CommandPalette;
+}

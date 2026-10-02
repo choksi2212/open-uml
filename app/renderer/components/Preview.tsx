@@ -1,207 +1,325 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ZoomIn, ZoomOut, Maximize2, AlertTriangle, Loader2, FileImage } from 'lucide-react';
+import { IconButton } from './ui/IconButton';
+import { Tooltip } from './ui/Tooltip';
 import { DiagramRenderPayload } from '../../preload';
+import { ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../lib/constants';
+import { cn } from '../lib/cn';
 
 interface PreviewProps {
   data: string | null;
   isRendering: boolean;
   format: 'svg' | 'png';
-  theme: 'dark' | 'light';
   diagrams?: DiagramRenderPayload[] | null;
   activeDiagram?: number;
   onSelectDiagram?: (index: number) => void;
 }
 
-const Preview: React.FC<PreviewProps> = ({ data, isRendering, format, theme, diagrams, activeDiagram = 0, onSelectDiagram }) => {
-  const [zoom, setZoom] = useState(1);
+export function Preview({
+  data,
+  isRendering,
+  format,
+  diagrams,
+  activeDiagram = 0,
+  onSelectDiagram,
+}: PreviewProps) {
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, mouseX: 0, mouseY: 0 });
+  const stageRef = useRef<HTMLDivElement>(null);
 
-  const handleZoom = (delta: number) => {
-    setZoom(prev => {
-      const next = +(prev + delta).toFixed(2);
-      return Math.min(3, Math.max(0.25, next));
+  // Decode the data URL once per render so we can inline the SVG. Inline
+  // rendering makes text inside the diagram selectable + copyable, and
+  // allows CSS-based recoloring for the dark theme.
+  const decoded = useMemo(() => decodeDataUrl(data), [data]);
+  const isSvg = decoded?.mimeType === 'image/svg+xml';
+  const inlineSvg = useMemo(() => {
+    if (!isSvg || !decoded) return null;
+    try {
+      return new TextDecoder().decode(decoded.bytes);
+    } catch {
+      return null;
+    }
+  }, [isSvg, decoded]);
+
+  const nativeSize = useMemo(() => measureSvg(inlineSvg), [inlineSvg]);
+
+  const zoomBy = useCallback((delta: number) => {
+    setZoom((prev) => {
+      const next = Math.round((prev + delta) * 100) / 100;
+      return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
     });
-  };
+  }, []);
 
-  const resetZoom = () => {
+  const resetView = useCallback(() => {
+    setZoom(ZOOM_DEFAULT);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  const actualSize = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
+  }, []);
 
   useEffect(() => {
-    setZoom(1);
+    setZoom(ZOOM_DEFAULT);
     setPan({ x: 0, y: 0 });
   }, [data, format]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-    }
-  };
+      const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+      zoomBy(delta);
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, [zoomBy]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isSpaceHeld && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        setIsSpaceHeld(true);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceHeld(false);
+        setIsPanning(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [isSpaceHeld]);
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoom <= 1 && !isSpaceHeld) return;
+    setIsPanning(true);
+    panStart.current = { x: pan.x, y: pan.y, mouseX: e.clientX, mouseY: e.clientY };
+    e.preventDefault();
   };
 
   useEffect(() => {
-    if (isDragging) {
-      const handleGlobalMouseMove = (e: MouseEvent) => {
-        if (zoom > 1) {
-          setPan({
-            x: e.clientX - dragStart.x,
-            y: e.clientY - dragStart.y,
-          });
-        }
-      };
-
-      const handleGlobalMouseUp = () => {
-        setIsDragging(false);
-      };
-
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleGlobalMouseMove);
-        window.removeEventListener('mouseup', handleGlobalMouseUp);
-      };
-    }
-  }, [isDragging, dragStart, zoom]);
+    if (!isPanning) return;
+    const onMove = (e: MouseEvent) => {
+      setPan({
+        x: panStart.current.x + (e.clientX - panStart.current.mouseX),
+        y: panStart.current.y + (e.clientY - panStart.current.mouseY),
+      });
+    };
+    const onUp = () => setIsPanning(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isPanning]);
 
   const showTabs = !!diagrams && diagrams.length > 1;
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden rounded-3xl border backdrop-blur-xl h-full ${
-      theme === 'dark'
-        ? 'bg-[#051321]/95 border-amber-50/10 shadow-[0_25px_70px_rgba(3,10,20,0.85)]'
-        : 'bg-white border-slate-200 shadow-xl'
-    }`}>
-      <div className={`
-        px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.35em] border-b flex items-center justify-between
-        ${theme === 'dark' ? 'bg-[#03101e]/80 border-amber-50/5 text-amber-100/80' : 'bg-slate-50 border-slate-200 text-slate-600'}
-      `}>
-        <span>Preview</span>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] opacity-60 font-medium">Zoom {(zoom * 100).toFixed(0)}%</span>
-          <div className="inline-flex rounded-md overflow-hidden border border-gray-300 dark:border-dark-border">
-            <button
-              type="button"
-              onClick={() => handleZoom(-0.1)}
-              className={`px-3 py-1 text-sm font-semibold ${theme === 'dark' ? 'bg-dark-surface text-gray-200 hover:bg-slate-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-            >
-              -
-            </button>
-            <button
-              type="button"
-              onClick={resetZoom}
-              className={`px-3 py-1 text-sm font-semibold border-l border-r ${theme === 'dark' ? 'border-dark-border bg-dark-surface text-gray-200 hover:bg-slate-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100'}`}
-            >
-              100%
-            </button>
-            <button
-              type="button"
-              onClick={() => handleZoom(0.1)}
-              className={`px-3 py-1 text-sm font-semibold ${theme === 'dark' ? 'bg-dark-surface text-gray-200 hover:bg-slate-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-            >
-              +
-            </button>
-          </div>
+    <div
+      className={cn(
+        'flex flex-col h-full bg-bg-elevated border border-border rounded-md overflow-hidden',
+      )}
+    >
+      <div
+        className={cn(
+          'h-9 px-3 flex items-center justify-between border-b border-border bg-bg-elevated',
+        )}
+      >
+        <span className="text-[11px] font-medium text-fg-muted uppercase tracking-wide">
+          Preview
+        </span>
+        <div className="flex items-center gap-1">
+          {data && (
+            <Tooltip content="Fit to window">
+              <IconButton
+                icon={<Maximize2 className="h-3.5 w-3.5" />}
+                label="Fit to window"
+                size="sm"
+                onClick={resetView}
+              />
+            </Tooltip>
+          )}
+          {data && isSvg && nativeSize && (
+            <Tooltip content="Actual size (1:1)">
+              <IconButton
+                icon={
+                  <span className="text-[10px] font-mono font-semibold">1:1</span>
+                }
+                label="Actual size"
+                size="sm"
+                onClick={actualSize}
+              />
+            </Tooltip>
+          )}
+          <Tooltip content="Zoom out" shortcut="Ctrl+Scroll">
+            <IconButton
+              icon={<ZoomOut className="h-3.5 w-3.5" />}
+              label="Zoom out"
+              size="sm"
+              onClick={() => zoomBy(-ZOOM_STEP)}
+              disabled={!data}
+            />
+          </Tooltip>
+          <span className="text-[11px] font-mono text-fg-subtle tabular-nums w-10 text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Tooltip content="Zoom in" shortcut="Ctrl+Scroll">
+            <IconButton
+              icon={<ZoomIn className="h-3.5 w-3.5" />}
+              label="Zoom in"
+              size="sm"
+              onClick={() => zoomBy(ZOOM_STEP)}
+              disabled={!data}
+            />
+          </Tooltip>
         </div>
       </div>
 
       {showTabs && (
-        <div className={`flex items-stretch gap-1 px-2 pt-2 flex-wrap border-b ${theme === 'dark' ? 'border-amber-50/5' : 'border-slate-200'}`}>
+        <div
+          className={cn(
+            'flex items-stretch gap-px px-2 py-1 border-b border-border overflow-x-auto bg-bg-elevated',
+          )}
+        >
           {diagrams!.map((d, i) => (
             <button
               key={i}
               type="button"
               onClick={() => onSelectDiagram?.(i)}
-              className={`px-3 py-1.5 text-xs rounded-t-md transition-colors ${
+              title={d.ok ? 'Diagram rendered' : d.error?.shortMessage || 'Rendering failed'}
+              className={cn(
+                'px-2.5 py-1 text-xs rounded-sm transition-colors flex items-center gap-1.5 shrink-0',
                 i === activeDiagram
-                  ? theme === 'dark'
-                    ? 'bg-[#0a2135] text-amber-100 border-t border-x border-amber-50/10'
-                    : 'bg-slate-100 text-slate-800 border-t border-x border-slate-200'
-                  : theme === 'dark'
-                    ? 'text-gray-400 hover:text-gray-200'
-                    : 'text-gray-500 hover:text-gray-700'
-              }`}
-              title={d.ok ? 'Diagram rendered' : (d.error?.shortMessage || 'Rendering failed')}
+                  ? 'bg-surface-2 text-fg'
+                  : 'text-fg-muted hover:text-fg hover:bg-surface-1',
+              )}
             >
-              Diagram {i + 1}
-              {!d.ok && <span className="ml-1.5 text-red-400">&#9888;</span>}
+              <span>Diagram {i + 1}</span>
+              {!d.ok && <AlertTriangle className="h-3 w-3 text-warn" />}
             </button>
           ))}
         </div>
       )}
 
-      <div 
-        ref={containerRef}
-        className={`
-        flex-1 overflow-hidden p-8 preview-stage
-        ${theme === 'dark' ? 'preview-stage--dark' : 'preview-stage--light'}
-        ${zoom > 1 ? 'cursor-grab' : ''}
-        ${isDragging ? 'cursor-grabbing' : ''}
-      `}
+      <div
+        ref={stageRef}
+        className={cn(
+          'flex-1 min-h-0 overflow-hidden relative graph-paper',
+          isPanning ? 'cursor-grabbing' : isSpaceHeld ? 'cursor-grab' : '',
+        )}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
       >
-        <div className="preview-center">
         {isRendering ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-              Rendering diagram{showTabs ? 's' : ''}...
-            </p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-fg-muted">
+            <Loader2 className="h-6 w-6 animate-spin text-accent" />
+            <span className="text-xs">Rendering</span>
           </div>
-        ) : data ? (
-          <div
-            className="preview-zoom"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: 'center center',
-              transition: isDragging ? 'none' : 'transform 0.2s ease',
-              cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-            }}
-          >
-            <img
-              src={data}
-              alt="Diagram preview"
-              className="preview-img"
-              draggable={false}
+        ) : data && inlineSvg ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className="diagram-svg transition-transform duration-150 ease-out"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: 'center',
+                willChange: 'transform',
+              }}
+              // PlantUML SVG output is well-formed and from a local trusted
+              // subprocess - no untrusted SVG ever reaches here.
+              dangerouslySetInnerHTML={{ __html: inlineSvg }}
             />
           </div>
+        ) : data ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className="transition-transform duration-150 ease-out"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: 'center',
+                willChange: 'transform',
+              }}
+            >
+              <img
+                src={data}
+                alt="Diagram preview"
+                draggable={false}
+                className="max-w-full max-h-full block select-none"
+              />
+            </div>
+          </div>
         ) : (
-          <div className={`
-            text-center
-            ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}
-          `}>
-            <p className="text-lg mb-2">No preview available</p>
-            <p className="text-sm">
-              {showTabs
-                ? 'This diagram failed to render - check the error panel'
-                : 'Start typing PlantUML code to see the diagram'}
-            </p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-fg-subtle">
+            <FileImage className="h-8 w-8 opacity-40" />
+            <span className="text-xs">No diagram</span>
+            <span className="text-[11px]">Start typing PlantUML to render</span>
           </div>
         )}
-        </div>
       </div>
     </div>
   );
-};
+}
 
-export default Preview;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+}
+
+function decodeDataUrl(dataUrl: string | null): { mimeType: string; bytes: Uint8Array } | null {
+  if (!dataUrl) return null;
+  const m = /^data:([^;,]+)(;base64)?,(.*)$/.exec(dataUrl);
+  if (!m) return null;
+  const [, mimeType, isBase64, payload] = m;
+  if (!isBase64) {
+    return { mimeType, bytes: new TextEncoder().encode(decodeURIComponent(payload)) };
+  }
+  const bin = atob(payload);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { mimeType, bytes };
+}
+
+/**
+ * Best-effort read of the diagram's natural pixel size from the SVG
+ * viewBox or width/height. Drives the "actual size" button (1:1 mapping
+ * once the SVG is laid out at its native size).
+ */
+function measureSvg(svgText: string | null): { width: number; height: number } | null {
+  if (!svgText) return null;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== 'svg') return null;
+    const vb = svg.getAttribute('viewBox');
+    if (vb) {
+      const parts = vb.split(/\s+/).map(Number);
+      if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+        return { width: parts[2], height: parts[3] };
+      }
+    }
+    const w = Number(svg.getAttribute('width'));
+    const h = Number(svg.getAttribute('height'));
+    if (Number.isFinite(w) && Number.isFinite(h)) return { width: w, height: h };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}

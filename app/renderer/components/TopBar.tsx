@@ -1,161 +1,170 @@
-import React from 'react';
+import {
+  FileText,
+  FolderOpen,
+  Save,
+  Play,
+  Download,
+  FileType,
+  Copy,
+  Sun,
+  Moon,
+  Command,
+} from 'lucide-react';
+import { Button } from './ui/Button';
+import { IconButton } from './ui/IconButton';
+import { Select } from './ui/Select';
+import { Separator } from './ui/Separator';
+import { Tooltip } from './ui/Tooltip';
 import logoMark from '../../assets/open_uml_logo.png';
 
 interface TopBarProps {
   onNew: () => void;
-  onRender: () => void;
-  onExport: (format?: 'svg' | 'png') => void;
-  onExportPdf: () => void;
-  onCopyImage: () => void;
   onOpen: () => void;
   onSave: () => void;
+  onRender: () => void;
+  onExport: () => void;
+  onExportPdf: () => void;
+  onCopyImage: () => void;
   onThemeToggle: () => void;
   onPaletteOpen: () => void;
   theme: 'dark' | 'light';
   canExport: boolean;
   isRendering: boolean;
+  isDirty: boolean;
   format: 'svg' | 'png';
   onFormatChange: (format: 'svg' | 'png') => void;
 }
 
-const TopBar: React.FC<TopBarProps> = ({
+export function TopBar({
   onNew,
+  onOpen,
+  onSave,
   onRender,
   onExport,
   onExportPdf,
   onCopyImage,
-  onOpen,
-  onSave,
   onThemeToggle,
   onPaletteOpen,
   theme,
   canExport,
   isRendering,
+  isDirty,
   format,
   onFormatChange,
-}) => {
-  const buttonClass = `
-    px-4 py-2 rounded-md text-sm font-medium transition-colors
-    ${theme === 'dark'
-      ? 'bg-dark-surface text-gray-200 hover:bg-slate-600'
-      : 'bg-white text-gray-700 hover:bg-gray-100'
-    }
-    border border-gray-300 dark:border-dark-border
-  `;
-
-  const disabledClass = 'opacity-50 cursor-not-allowed';
-
+}: TopBarProps) {
   return (
-    <div className={`
-      flex items-center justify-between px-6 py-4 border-b
-      ${theme === 'dark' ? 'bg-dark-surface border-dark-border' : 'bg-white border-gray-200'}
-    `}>
-      <div className="flex items-center gap-3">
-        <div className="logo-chip">
-          <img src={logoMark} alt="Open UML logo" className="h-9 w-9 object-contain" />
-        </div>
-        <h1 className={`
-          text-3xl font-black tracking-tight leading-none app-title ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
-        `}>
-          <span className="app-title-accent">Open</span> <span className="opacity-80">UML</span>
-        </h1>
+    <header
+      className="
+        flex items-center justify-between
+        h-12 px-3
+        border-b border-border
+        bg-bg-elevated
+        shrink-0
+      "
+    >
+      {/* Left: brand + product name */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <img src={logoMark} alt="" className="h-6 w-6 rounded" aria-hidden />
+        <span className="text-sm font-semibold tracking-tight text-fg">Open UML</span>
+        <span className="hidden sm:inline text-xs text-fg-subtle">offline PlantUML editor</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onNew}
-          className={buttonClass}
-          title="New Diagram (Ctrl+N)"
-        >
-          New
-        </button>
-        
-        <button
-          onClick={onOpen}
-          className={buttonClass}
-          title="Open File"
-        >
-          Open
-        </button>
-        
-        <button
-          onClick={onSave}
-          className={buttonClass}
-          title="Save File (Ctrl+S)"
-        >
-          Save
-        </button>
+      {/* Right: actions */}
+      <div className="flex items-center gap-0.5">
+        <Tooltip content="New" shortcut="Ctrl+N">
+          <IconButton icon={<FileText className="h-4 w-4" />} label="New" size="sm" onClick={onNew} />
+        </Tooltip>
+        <Tooltip content="Open file" shortcut="Ctrl+O">
+          <IconButton icon={<FolderOpen className="h-4 w-4" />} label="Open" size="sm" onClick={onOpen} />
+        </Tooltip>
+        <Tooltip content="Save" shortcut="Ctrl+S">
+          <IconButton
+            icon={<Save className="h-4 w-4" />}
+            label="Save"
+            size="sm"
+            onClick={onSave}
+            active={isDirty}
+          />
+        </Tooltip>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-dark-border mx-1" />
+        <Separator />
 
-        <button
-          onClick={onRender}
-          disabled={isRendering}
-          className={`${buttonClass} ${isRendering ? disabledClass : ''}`}
-          title="Render Diagram (Ctrl+Shift+R)"
-        >
-          {isRendering ? 'Rendering...' : 'Render'}
-        </button>
+        <Tooltip content="Render diagram" shortcut="Ctrl+Shift+R">
+          <Button
+            variant={isRendering ? 'secondary' : 'primary'}
+            size="sm"
+            onClick={onRender}
+            disabled={isRendering}
+            leftIcon={isRendering ? undefined : <Play className="h-3.5 w-3.5 fill-current" />}
+            loading={isRendering}
+          >
+            {isRendering ? 'Rendering' : 'Render'}
+          </Button>
+        </Tooltip>
 
-        <select
-          value={format}
-          onChange={(e) => onFormatChange(e.target.value as 'svg' | 'png')}
-          className={`
-            ${buttonClass} cursor-pointer
-            ${theme === 'dark' ? 'bg-dark-surface' : 'bg-white'}
-          `}
-        >
-          <option value="svg">SVG</option>
-          <option value="png">PNG</option>
-        </select>
+        <Tooltip content="Preview format">
+          <Select value={format} onChange={(e) => onFormatChange(e.target.value as 'svg' | 'png')}>
+            <option value="svg">SVG</option>
+            <option value="png">PNG</option>
+          </Select>
+        </Tooltip>
 
-        <button
-          onClick={() => onExport()}
-          disabled={!canExport}
-          className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
-          title="Export Diagram"
-        >
-          Export
-        </button>
+        <Separator />
 
-        <button
-          onClick={onExportPdf}
-          disabled={!canExport}
-          className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
-          title="Export as PDF"
-        >
-          PDF
-        </button>
+        <Tooltip content="Export diagram" shortcut="Ctrl+Shift+G">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onExport}
+            disabled={!canExport}
+            leftIcon={<Download className="h-3.5 w-3.5" />}
+          >
+            Export
+          </Button>
+        </Tooltip>
+        <Tooltip content="Export as PDF">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onExportPdf}
+            disabled={!canExport}
+            leftIcon={<FileType className="h-3.5 w-3.5" />}
+          >
+            PDF
+          </Button>
+        </Tooltip>
+        <Tooltip content="Copy image to clipboard" shortcut="Ctrl+Shift+C">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onCopyImage}
+            disabled={!canExport}
+            leftIcon={<Copy className="h-3.5 w-3.5" />}
+          >
+            Copy
+          </Button>
+        </Tooltip>
 
-        <button
-          onClick={onCopyImage}
-          disabled={!canExport}
-          className={`${buttonClass} ${!canExport ? disabledClass : ''}`}
-          title="Copy Image to Clipboard (Ctrl+Shift+C)"
-        >
-          Copy
-        </button>
+        <Separator />
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-dark-border mx-1" />
+        <Tooltip content="Command palette" shortcut="Ctrl+Shift+K">
+          <IconButton
+            icon={<Command className="h-4 w-4" />}
+            label="Command palette"
+            size="sm"
+            onClick={onPaletteOpen}
+          />
+        </Tooltip>
 
-        <button
-          onClick={onPaletteOpen}
-          className={buttonClass}
-          title="Command Palette (Ctrl+Shift+K)"
-        >
-          &#8964; Commands
-        </button>
-
-        <button
-          onClick={onThemeToggle}
-          className={buttonClass}
-          title="Toggle Theme"
-        >
-          {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-        </button>
+        <Tooltip content={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+          <IconButton
+            icon={theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            label="Toggle theme"
+            size="sm"
+            onClick={onThemeToggle}
+          />
+        </Tooltip>
       </div>
-    </div>
+    </header>
   );
-};
-
-export default TopBar;
+}
