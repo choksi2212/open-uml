@@ -23,6 +23,7 @@
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@monaco-editor/react": "^4.6.0",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.460.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -91,10 +92,30 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "fileAssociations": [
-        { "ext": "puml", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" },
-        { "ext": "plantuml", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" },
-        { "ext": "iuml", "name": "PlantUML Include File", "description": "PlantUML Include File", "role": "Editor" },
-        { "ext": "pu", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" }
+        {
+          "ext": "puml",
+          "name": "PlantUML Diagram",
+          "description": "PlantUML Source File",
+          "role": "Editor"
+        },
+        {
+          "ext": "plantuml",
+          "name": "PlantUML Diagram",
+          "description": "PlantUML Source File",
+          "role": "Editor"
+        },
+        {
+          "ext": "iuml",
+          "name": "PlantUML Include File",
+          "description": "PlantUML Include File",
+          "role": "Editor"
+        },
+        {
+          "ext": "pu",
+          "name": "PlantUML Diagram",
+          "description": "PlantUML Source File",
+          "role": "Editor"
+        }
       ]
     },
     "mac": {

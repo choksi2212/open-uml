@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open UML — Offline PlantUML editor</title>
+  <meta name="description" content="A completely offline, modern PlantUML editor for Windows and macOS. Bundled JRE. No install fuss. No telemetry." />
+  <meta property="og:title" content="Open UML" />
+  <meta property="og:description" content="Offline PlantUML editor. Bundled JRE. Zero setup." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* Design tokens match the desktop app. Keep this file in sync with
+       app/renderer/index.css so the marketing site and the product feel
+       like one product. */
+    :root {
+      --bg: #fafaf9;
+      --bg-elevated: #ffffff;
+      --surface-1: #f4f4f3;
+      --surface-2: #ebebe9;
+      --fg: #1a1a1a;
+      --fg-muted: #57534e;
+      --fg-subtle: #a8a29e;
+      --border: #e7e5e4;
+      --border-strong: #d6d3d1;
+      --accent: #0f766e;
+      --accent-hover: #115e59;
+      --accent-soft: #ccfbf1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a1218;
+        --bg-elevated: #0f1721;
+        --surface-1: #131c26;
+        --surface-2: #1a2632;
+        --fg: #f0fdfa;
+        --fg-muted: #94a3b8;
+        --fg-subtle: #475569;
+        --border: #1c2a37;
+        --border-strong: #2a3645;
+        --accent: #22d3ee;
+        --accent-hover: #67e8f9;
+        --accent-soft: #164e63;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: clamp(40px, 8vw, 120px) clamp(20px, 5vw, 40px); }
+
+    header { display: flex; align-items: center; gap: 10px; margin-bottom: 64px; }
+    .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .logo svg { width: 22px; height: 22px; color: var(--accent); }
+    .wordmark { font-weight: 600; letter-spacing: -0.01em; }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+    .lead {
+      font-size: clamp(16px, 2vw, 18px);
+      color: var(--fg-muted);
+      max-width: 56ch;
+      margin-bottom: 32px;
+    }
+
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 64px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 40px; padding: 0 18px; border-radius: 6px;
+      font-weight: 500; font-size: 14px; text-decoration: none;
+      border: 1px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg-elevated); color: var(--fg); border-color: var(--border); }
+    .btn-secondary:hover { border-color: var(--border-strong); }
+
+    section { margin-bottom: 48px; }
+    h2 {
+      font-size: 13px; font-weight: 500;
+      color: var(--fg-subtle);
+      text-transform: none; letter-spacing: 0;
+      margin-bottom: 16px;
+    }
+    .features {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .feature {
+      padding: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .feature h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .feature p { font-size: 13px; color: var(--fg-muted); }
+
+    pre {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    .keyword { color: var(--accent); font-weight: 500; }
+
+    footer {
+      margin-top: 80px; padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 24px; flex-wrap: wrap;
+      font-size: 13px; color: var(--fg-subtle);
+    }
+    footer a { color: var(--fg-muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="logo" aria-hidden>
+        <!-- Mark placeholder. Replace this inline SVG with the real logo
+             generated from the LOGOS brief. -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="6" cy="6" r="3" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="18" cy="18" r="3" />
+          <path d="M6 6 L18 6 L18 18" />
+        </svg>
+      </span>
+      <span class="wordmark">Open UML</span>
+    </header>
+
+    <h1>An offline PlantUML editor that actually stays out of your way.</h1>
+    <p class="lead">
+      Open UML renders PlantUML diagrams live as you type, with a bundled
+      Java runtime and rendering engine. No accounts. No upload. No Java
+      install dance. Works on Windows and macOS.
+    </p>
+
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/choksi2212/open-uml/releases">
+        Download for Windows / macOS
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/choksi2212/open-uml">
+        View on GitHub
+      </a>
+    </div>
+
+    <section>
+      <h2>What you get</h2>
+      <div class="features">
+        <div class="feature">
+          <h3>Truly offline</h3>
+          <p>The JRE and the PlantUML engine are bundled. Open it once, no network required forever.</p>
+        </div>
+        <div class="feature">
+          <h3>Live preview</h3>
+          <p>Diagrams render as you type, with a 300 ms debounce. Multi-diagram files show tabs.</p>
+        </div>
+        <div class="feature">
+          <h3>Professional editor</h3>
+          <p>Monaco with PlantUML syntax highlighting, autocomplete snippets, and dark/light themes.</p>
+        </div>
+        <div class="feature">
+          <h3>Export anywhere</h3>
+          <p>PNG, SVG, PDF. Or copy the rendered diagram straight to your clipboard.</p>
+        </div>
+        <div class="feature">
+          <h3>No telemetry</h3>
+          <p>Zero analytics. The only network call is a one-shot update check against GitHub.</p>
+        </div>
+        <div class="feature">
+          <h3>Free, MIT licensed</h3>
+          <p>Built for students, engineers, and technical writers. Use it, fork it, ship it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>It looks like this</h2>
+      <pre><span class="keyword">@startuml</span>
+Alice -> Bob: <span class="keyword">Authentication Request</span>
+Bob --> Alice: <span class="keyword">Authentication Response</span>
+
+Alice -> Bob: <span class="keyword">Another authentication Request</span>
+Alice <-- Bob: <span class="keyword">another authentication Response</span>
+<span class="keyword">@enduml</span></pre>
+    </section>
+
+    <footer>
+      <a href="https://github.com/choksi2212/open-uml/releases">Releases</a>
+      <a href="https://github.com/choksi2212/open-uml">Source</a>
+      <a href="https://github.com/choksi2212/open-uml/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/choksi2212/open-uml/issues">Issues</a>
+    </footer>
+  </div>
+</body>
+</html>
