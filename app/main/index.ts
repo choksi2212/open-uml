@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, nativeImage } from 'electron';
 import { spawn } from 'child_process';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
+import { createWriteStream } from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
 let currentFilePath: string | null = null;
@@ -47,104 +48,9 @@ function createWindow() {
   });
 }
 
-function createMenu() {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'new');
-          },
-        },
-        {
-          label: 'Open',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'open');
-          },
-        },
-        { type: 'separator' },
-        {
-          label: 'Save',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'save');
-          },
-        },
-        {
-          label: 'Save As',
-          accelerator: 'CmdOrCtrl+Shift+S',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'save-as');
-          },
-        },
-        { type: 'separator' },
-        {
-          label: 'Render',
-          accelerator: 'CmdOrCtrl+Shift+R',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'render');
-          },
-        },
-        {
-          label: 'Export as SVG',
-          accelerator: 'CmdOrCtrl+Shift+G',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'export-svg');
-          },
-        },
-        {
-          label: 'Export as PNG',
-          accelerator: 'CmdOrCtrl+Shift+P',
-          click: () => {
-            mainWindow?.webContents.send('menu-action', 'export-png');
-          },
-        },
-      ],
-    },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'FAQ',
-          click: () => {
-            shell.openExternal('https://github.com/choksi2212/open-uml');
-          },
-        },
-        {
-          label: 'Contact',
-          click: () => {
-            shell.openExternal('mailto:manaschoksiwork@gmail.com?subject=Open%20UML%20Support');
-          },
-        },
-      ],
-    },
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
-
-app.whenReady().then(() => {
-  createWindow();
-  createMenu();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-      createMenu();
-    }
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
 
 // Get paths for bundled resources
 function getPlantUMLPath(): string {
@@ -154,23 +60,126 @@ function getPlantUMLPath(): string {
   return join(process.resourcesPath, 'plantuml', 'plantuml.jar');
 }
 
-function getJREPath(): string {
+// The JRE is platform-specific and lives in a per-OS folder (jre-win on
+// Windows, jre-mac on macOS) that the build script populates before
+// electron-builder packs it. v1.0.1 and earlier shipped the Windows JRE
+// inside the macOS DMG, which is why macOS reported the app as damaged.
+function getJREDir(): string {
+  const folder = process.platform === 'win32' ? 'jre-win' : 'jre-mac';
   if (isDev) {
-    const devPath = process.platform === 'win32'
-      ? join(__dirname, '../../app/plantuml/jre/bin/java.exe')
-      : join(__dirname, '../../app/plantuml/jre/bin/java');
-    return devPath;
+    return join(__dirname, '../../app/plantuml', folder);
   }
-  const platform = process.platform;
-  const jreDir = join(process.resourcesPath, 'plantuml', 'jre');
-  
-  return platform === 'win32'
-    ? join(jreDir, 'bin', 'java.exe')
-    : join(jreDir, 'bin', 'java');
+  return join(process.resourcesPath, 'plantuml', folder);
 }
 
-// IPC: Render PlantUML diagram
-ipcMain.handle('render-diagram', async (_, { source, format = 'svg' }) => {
+function getJREPath(): string {
+  const dir = getJREDir();
+  if (process.platform === 'win32') {
+    return join(dir, 'bin', 'java.exe');
+  }
+  return join(dir, 'bin', 'java');
+}
+
+// The bundled fat jar ships jlatexmath but not the optional companions its
+// manifest lists (batik, fop, xmlgraphics). Drop plantuml-pdf.jar next to
+// plantuml.jar and the JVM resolves it through the manifest Class-Path: that
+// is what makes <math> formulas render instead of crashing with
+// ClassNotFoundException (formulas worked on planttext.com but not here).
+function getLibClasspath(): string[] {
+  const jarDir = dirname(getPlantUMLPath());
+  const companions = [join(jarDir, 'plantuml-pdf.jar')];
+  return companions.filter((p) => existsSync(p));
+}
+
+const DIAGRAM_START = /^\s*@(startuml|startmindmap|startgantt|startsalt|startjson|startyaml|startwireframe|startdot|startmermaid|startcreole|startmath|startditaa|startebnf|startregex|startflow|startstack|startchronology|startmonthlyplanner|startnetwork|startnwdiag|starttiming|starttree|startwbs|startarchimate|startbpm|startc4|startsitemap|startboard|startgalaxy|startgit|starthcl)/i;
+
+// splitDiagrams breaks a source into individual @startXXX blocks. PlantUML's
+// -pipe mode renders only the first diagram of a multi-diagram file, while
+// planttext.com renders all of them, which is why files with several
+// diagrams appeared to "not work" in Open UML.
+function splitDiagrams(source: string): string[] {
+  const lines = source.split('\n');
+  const diagrams: string[] = [];
+  let current: string[] = [];
+  let inside = false;
+  let endMarker: string | null = null;
+
+  for (const line of lines) {
+    const startMatch = line.match(DIAGRAM_START);
+    if (!inside && startMatch) {
+      inside = true;
+      endMarker = `@end${startMatch[1].slice(5).toLowerCase()}`;
+      current = [line];
+      continue;
+    }
+    if (inside) {
+      current.push(line);
+      // tolerate @enduml closing any block type, the way PlantUML does
+      if (line.trim().toLowerCase() === '@enduml' || (endMarker && line.trim().toLowerCase() === endMarker)) {
+        diagrams.push(current.join('\n'));
+        current = [];
+        inside = false;
+        endMarker = null;
+      }
+    }
+  }
+  // An unterminated block still renders in PlantUML; keep it.
+  if (inside && current.length > 0) {
+    diagrams.push(current.join('\n'));
+  }
+  if (diagrams.length === 0 && source.trim() !== '') {
+    diagrams.push(source);
+  }
+  return diagrams;
+}
+
+// PlantUML writes a rendered error IMAGE with exit code 0 for syntax errors,
+// so "exit 0 + non-empty stdout" is not success. The error image carries
+// these markers, and stderr carries the line number in PlantUML's own format
+// ("ERROR\n3\nSyntax Error?"), which the old `line: N` regex never matched.
+function looksLikeErrorImage(output: Buffer): boolean {
+  const head = output.subarray(0, Math.min(4096, output.length)).toString('utf-8');
+  if (!head.includes('<svg')) {
+    return false;
+  }
+  return (
+    head.includes('Syntax Error') ||
+    head.toLowerCase().includes('cannot find') ||
+    head.includes('Preprocessing error') ||
+    head.toLowerCase().includes('preprocessor error') ||
+    head.includes('null pointer exception')
+  );
+}
+
+function parsePlantumlError(stderr: string, output: Buffer): { line: number; shortMessage: string; details: string } {
+  // stderr format for a syntax error: "ERROR\n<line>\n<message>"
+  const errMatch = stderr.match(/^ERROR\s*\n\s*(\d+)\s*\n([\s\S]*)$/);
+  if (errMatch) {
+    return {
+      line: parseInt(errMatch[1], 10) || 0,
+      shortMessage: errMatch[2].trim().split('\n')[0] || 'Syntax error',
+      details: stderr,
+    };
+  }
+  const lineMatch = stderr.match(/line\s*[:=]?\s*(\d+)/i);
+  const details = stderr || output.subarray(0, 2000).toString('utf-8');
+  return {
+    line: lineMatch ? parseInt(lineMatch[1], 10) : 0,
+    shortMessage: stderr.trim().split('\n')[0] || 'Rendering failed',
+    details,
+  };
+}
+
+interface DiagramRenderResult {
+  ok: boolean;
+  format?: 'svg' | 'png';
+  data?: string;
+  error?: { line: number; shortMessage: string; details: string };
+  renderMs?: number;
+}
+
+// renderOne renders a single diagram block through the bundled JRE.
+function renderOne(block: string, format: 'svg' | 'png'): Promise<DiagramRenderResult> {
   return new Promise((resolve) => {
     const plantumlJar = getPlantUMLPath();
     const javaPath = getJREPath();
@@ -178,31 +187,23 @@ ipcMain.handle('render-diagram', async (_, { source, format = 'svg' }) => {
     if (!existsSync(plantumlJar)) {
       resolve({
         ok: false,
-        error: {
-          line: 0,
-          shortMessage: 'PlantUML not found',
-          details: `PlantUML JAR not found at: ${plantumlJar}`,
-        },
+        error: { line: 0, shortMessage: 'PlantUML not found', details: `PlantUML JAR not found at: ${plantumlJar}` },
       });
       return;
     }
-
     if (!existsSync(javaPath)) {
       resolve({
         ok: false,
-        error: {
-          line: 0,
-          shortMessage: 'Java runtime not found',
-          details: `JRE not found at: ${javaPath}`,
-        },
+        error: { line: 0, shortMessage: 'Java runtime not found', details: `JRE not found at: ${javaPath}` },
       });
       return;
     }
 
-    const args = ['-jar', plantumlJar, `-t${format}`, '-pipe', '-charset', 'UTF-8'];
-    const javaProcess = spawn(javaPath, args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    // -jar ignores -cp, so build the classpath explicitly and run the main
+    // class, keeping the companion jar on it for <math>/PDF support.
+    const classpath = [plantumlJar, ...getLibClasspath()].join(process.platform === 'win32' ? ';' : ':');
+    const args = ['-cp', classpath, 'net.sourceforge.plantuml.Run', `-t${format}`, '-pipe', '-charset', 'UTF-8'];
+    const javaProcess = spawn(javaPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
 
     let stdout = Buffer.alloc(0);
     let stderr = '';
@@ -210,60 +211,53 @@ ipcMain.handle('render-diagram', async (_, { source, format = 'svg' }) => {
     javaProcess.stdout.on('data', (data: Buffer) => {
       stdout = Buffer.concat([stdout, data]);
     });
-
     javaProcess.stderr.on('data', (data: Buffer) => {
       stderr += data.toString('utf-8');
     });
 
     javaProcess.on('close', (code) => {
-      if (code === 0 && stdout.length > 0) {
+      if (code === 0 && stdout.length > 0 && !looksLikeErrorImage(stdout)) {
         const base64 = stdout.toString('base64');
         const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
-        const dataUri = `data:${mimeType};base64,${base64}`;
-        
-        resolve({
-          ok: true,
-          format,
-          data: dataUri,
-        });
+        resolve({ ok: true, format, data: `data:${mimeType};base64,${base64}` });
       } else {
-        // Parse error from stderr
-        const lineMatch = stderr.match(/line\s*[:=]\s*(\d+)/i);
-        const line = lineMatch ? parseInt(lineMatch[1], 10) : 0;
-        
-        // Extract error message
-        const errorLines = stderr.split('\n').filter(line => 
-          line.trim() && !line.includes('java') && !line.includes('at ')
-        );
-        const shortMessage = errorLines[0] || 'Rendering failed';
-        
-        resolve({
-          ok: false,
-          error: {
-            line,
-            shortMessage: shortMessage.trim(),
-            details: stderr,
-          },
-        });
+        resolve({ ok: false, error: parsePlantumlError(stderr, stdout) });
       }
     });
 
     javaProcess.on('error', (error) => {
       resolve({
         ok: false,
-        error: {
-          line: 0,
-          shortMessage: 'Process error',
-          details: error.message,
-        },
+        error: { line: 0, shortMessage: 'Process error', details: error.message },
       });
     });
 
-    // Send source to stdin
-    javaProcess.stdin.write(source, 'utf-8');
+    javaProcess.stdin.write(block, 'utf-8');
     javaProcess.stdin.end();
   });
+}
+
+// IPC: Render PlantUML diagram - every @startXXX block, not just the first.
+ipcMain.handle('render-diagram', async (_, { source, format = 'svg' }) => {
+  const startedAt = Date.now();
+  const blocks = splitDiagrams(source);
+  if (blocks.length === 0) {
+    return {
+      ok: false,
+      error: { line: 0, shortMessage: 'Nothing to render', details: 'The source contains no diagram.' },
+    };
+  }
+  const results = await Promise.all(blocks.map((b) => renderOne(b, format)));
+  const renderMs = Date.now() - startedAt;
+  if (results.length === 1) {
+    return { ...results[0], renderMs };
+  }
+  return { ok: results.some((r) => r.ok), diagrams: results.map((r) => ({ ...r, renderMs })) };
 });
+
+// ---------------------------------------------------------------------------
+// Export: PNG/SVG/PDF + copy to clipboard
+// ---------------------------------------------------------------------------
 
 // IPC: Export diagram
 ipcMain.handle('export-diagram', async (_, { data, format, defaultPath }) => {
@@ -280,7 +274,6 @@ ipcMain.handle('export-diagram', async (_, { data, format, defaultPath }) => {
   }
 
   try {
-    // Extract base64 data from data URI
     const base64Data = data.split(',')[1];
     const buffer = Buffer.from(base64Data, 'base64');
     await writeFile(result.filePath!, buffer);
@@ -289,6 +282,172 @@ ipcMain.handle('export-diagram', async (_, { data, format, defaultPath }) => {
     return { canceled: false, error: error.message };
   }
 });
+
+// IPC: Export the currently shown diagram as PDF. PlantUML emits PDF through
+// -tpdf when the bundled companion jar (batik+fop, the "pdf" variant) is on
+// the classpath - the same jar that enables <math> formulas.
+ipcMain.handle('export-pdf', async (_, { source, defaultPath }) => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: defaultPath || 'diagram.pdf',
+    filters: [
+      { name: 'PDF', extensions: ['pdf'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+  if (result.canceled) {
+    return { canceled: true };
+  }
+
+  const block = splitDiagrams(source)[0] ?? source;
+  return new Promise((resolve) => {
+    const classpath = [getPlantUMLPath(), ...getLibClasspath()].join(process.platform === 'win32' ? ';' : ':');
+    const args = ['-cp', classpath, 'net.sourceforge.plantuml.Run', '-tpdf', '-pipe', '-charset', 'UTF-8'];
+    const javaProcess = spawn(getJREPath(), args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+    const out = createWriteStream(result.filePath!);
+    let stderr = '';
+    javaProcess.stdout.pipe(out);
+    javaProcess.stderr.on('data', (d: Buffer) => { stderr += d.toString('utf-8'); });
+    javaProcess.on('close', (code) => {
+      if (code === 0) {
+        resolve({ canceled: false, path: result.filePath });
+      } else {
+        resolve({ canceled: false, error: stderr || `plantuml exited with ${code}` });
+      }
+    });
+    javaProcess.on('error', (error) => resolve({ canceled: false, error: error.message }));
+    javaProcess.stdin.write(block, 'utf-8');
+    javaProcess.stdin.end();
+  });
+});
+
+// IPC: Copy the current preview image to the clipboard. PNG goes through
+// nativeImage; SVG is copied as text so vector editors keep the vectors.
+ipcMain.handle('copy-image', async (_, { data, format }) => {
+  try {
+    if (format === 'png') {
+      const base64 = data.split(',')[1];
+      const img = nativeImage.createFromBuffer(Buffer.from(base64, 'base64'));
+      clipboard.writeImage(img);
+    } else {
+      const svgText = Buffer.from(data.split(',')[1], 'base64').toString('utf-8');
+      clipboard.writeText(svgText);
+    }
+    return { ok: true };
+  } catch (error: any) {
+    return { ok: false, error: error.message };
+  }
+});
+
+// ---------------------------------------------------------------------------
+// File operations + recent files
+// ---------------------------------------------------------------------------
+
+const RECENTS_STORE = join(app.getPath('userData'), 'recent-files.json');
+
+async function readRecents(): Promise<string[]> {
+  try {
+    const raw = await readFile(RECENTS_STORE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function addRecent(path: string): Promise<void> {
+  if (!path) return;
+  const recents = (await readRecents()).filter((p) => p !== path);
+  recents.unshift(path);
+  await writeFile(RECENTS_STORE, JSON.stringify(recents.slice(0, 10), null, 2), 'utf-8');
+  await setApplicationMenu();
+}
+
+async function openRecent(path: string) {
+  if (!existsSync(path)) {
+    dialog.showErrorBox('File not found', `The file no longer exists:\n${path}`);
+    return;
+  }
+  try {
+    const content = await readFile(path, 'utf-8');
+    currentFilePath = path;
+    mainWindow?.webContents.send('recent-file-opened', { content, path });
+  } catch (error: any) {
+    dialog.showErrorBox('Could not open file', error.message);
+  }
+}
+
+async function setApplicationMenu() {
+  const recents = await readRecents();
+  const recentsSubmenu: Electron.MenuItemConstructorOptions[] = recents.length > 0
+    ? [
+        ...recents.map((p) => ({
+          label: p,
+          click: () => openRecent(p),
+        })),
+        { type: 'separator' as const },
+        {
+          label: 'Clear Recently Opened',
+          click: async () => {
+            await writeFile(RECENTS_STORE, '[]', 'utf-8');
+            await setApplicationMenu();
+          },
+        },
+      ]
+    : [{ label: 'No Recent Files', enabled: false }];
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => mainWindow?.webContents.send('menu-action', 'new') },
+        { label: 'Open', accelerator: 'CmdOrCtrl+O', click: () => mainWindow?.webContents.send('menu-action', 'open') },
+        { type: 'separator' },
+        { label: 'Open Recent', submenu: recentsSubmenu },
+        { type: 'separator' },
+        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => mainWindow?.webContents.send('menu-action', 'save') },
+        { label: 'Save As', accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu-action', 'save-as') },
+        { type: 'separator' },
+        { label: 'Render', accelerator: 'CmdOrCtrl+Shift+R', click: () => mainWindow?.webContents.send('menu-action', 'render') },
+        { type: 'separator' },
+        { label: 'Export as SVG', accelerator: 'CmdOrCtrl+Shift+G', click: () => mainWindow?.webContents.send('menu-action', 'export-svg') },
+        { label: 'Export as PNG', accelerator: 'CmdOrCtrl+Shift+P', click: () => mainWindow?.webContents.send('menu-action', 'export-png') },
+        { label: 'Export as PDF', click: () => mainWindow?.webContents.send('menu-action', 'export-pdf') },
+        { type: 'separator' },
+        { label: 'Copy Image to Clipboard', accelerator: 'CmdOrCtrl+Shift+C', click: () => mainWindow?.webContents.send('menu-action', 'copy-image') },
+        { type: 'separator' as const },
+        ...(process.platform === 'darwin'
+          ? [{ role: 'close' as const }, { role: 'quit' as const }]
+          : [{ role: 'quit' as const }]),
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'togglefullscreen' },
+        { type: 'separator' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { role: 'resetZoom' },
+        { type: 'separator' },
+        { role: 'toggleDevTools' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Check for Updates', click: () => checkForUpdates(true) },
+        { type: 'separator' },
+        { label: 'FAQ', click: () => shell.openExternal('https://github.com/choksi2212/open-uml') },
+        { label: 'Contact', click: () => shell.openExternal('mailto:manaschoksiwork@gmail.com?subject=Open%20UML%20Support') },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 // IPC: Open file
 ipcMain.handle('open-file', async () => {
@@ -308,6 +467,7 @@ ipcMain.handle('open-file', async () => {
   try {
     const content = await readFile(result.filePaths[0], 'utf-8');
     currentFilePath = result.filePaths[0];
+    await addRecent(result.filePaths[0]);
     return { canceled: false, content, path: result.filePaths[0] };
   } catch (error: any) {
     return { canceled: false, error: error.message };
@@ -338,6 +498,7 @@ ipcMain.handle('save-file', async (_, { content, defaultPath, useExistingPath })
   try {
     await writeFile(filePath, content, 'utf-8');
     currentFilePath = filePath;
+    await addRecent(filePath);
     return { canceled: false, path: filePath };
   } catch (error: any) {
     return { canceled: false, error: error.message };
@@ -362,7 +523,8 @@ ipcMain.handle('save-as-file', async (_, { content, defaultPath }) => {
   try {
     await writeFile(result.filePath!, content, 'utf-8');
     currentFilePath = result.filePath!;
-    return { canceled: false, path: result.filePath };
+    await addRecent(result.filePath!);
+    return { canceled: false, path: result.filePath! };
   } catch (error: any) {
     return { canceled: false, error: error.message };
   }
@@ -373,3 +535,91 @@ ipcMain.handle('open-external', async (_, url: string) => {
   await shell.openExternal(url);
 });
 
+// ---------------------------------------------------------------------------
+// Update checker (GitHub releases; checks only, never auto-installs)
+// ---------------------------------------------------------------------------
+
+const UPDATE_URL = 'https://api.github.com/repos/choksi2212/open-uml/releases/latest';
+
+async function fetchLatestRelease(): Promise<{ tag: string; url: string; notes: string } | null> {
+  const { net } = require('electron');
+  try {
+    const res = await net.fetch(UPDATE_URL, {
+      headers: { 'User-Agent': 'OpenUML-UpdateCheck' },
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    return { tag: json.tag_name, url: json.html_url, notes: json.body || '' };
+  } catch {
+    return null;
+  }
+}
+
+async function checkForUpdates(manual = false) {
+  const release = await fetchLatestRelease();
+  if (!release) {
+    if (manual) {
+      dialog.showErrorBox('Update check failed', 'Could not reach GitHub to check for updates. Try again later.');
+    }
+    return;
+  }
+  const current = `v${app.getVersion()}`;
+  if (release.tag && release.tag !== current) {
+    const choice = await dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'Update available',
+      message: `A new version of Open UML is available: ${release.tag} (you have ${current}).`,
+      detail: 'Open the release page to download it?',
+      buttons: ['Open Release Page', 'Skip'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (choice.response === 0) {
+      shell.openExternal(release.url);
+    }
+  } else if (manual) {
+    dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'You are up to date',
+      message: `Open UML ${current} is the latest release.`,
+    });
+  }
+}
+
+// IPC: renderer-triggered update check (returns info instead of a dialog)
+ipcMain.handle('check-updates', async () => {
+  const release = await fetchLatestRelease();
+  if (!release) return { ok: false };
+  const current = `v${app.getVersion()}`;
+  return {
+    ok: true,
+    current,
+    latest: release.tag,
+    updateAvailable: release.tag !== current,
+    url: release.url,
+  };
+});
+
+app.setAppUserModelId('com.openuml.app');
+
+app.whenReady().then(() => {
+  createWindow();
+  setApplicationMenu();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+      setApplicationMenu();
+    }
+  });
+
+  // Silent update check once per session, shortly after launch.
+  setTimeout(() => checkForUpdates(false), 5000);
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+}
+)

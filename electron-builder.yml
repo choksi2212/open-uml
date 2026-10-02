@@ -5,13 +5,19 @@ directories:
 files:
   - dist/**/*
   - dist-electron/**/*
-  - app/plantuml/**/*
   - app/assets/**/*
   - package.json
 asar: true
+# plantuml.jar + plantuml-pdf.jar + the per-OS JRE go to extraResources so
+# the JRE binaries are not packed inside the asar archive (they must be
+# directly executable by the operating system).
 extraResources:
-  - from: app/plantuml
-    to: plantuml
+  - from: app/plantuml/plantuml.jar
+    to: plantuml/plantuml.jar
+  - from: app/plantuml/plantuml-pdf-1.2025.10.jar
+    to: plantuml/plantuml-pdf.jar
+  - from: app/plantuml/jre-win
+    to: plantuml/jre-win
 win:
   target: nsis
   icon: app/assets/icon.ico
@@ -25,4 +31,10 @@ mac:
   icon: app/assets/icon.icns
   artifactName: "OpenUML-${version}.dmg"
   category: public.app-category.developer-tools
-
+  # No Apple Developer certificate: sign ad-hoc so the app launches instead
+  # of macOS Gatekeeper rejecting it as "damaged". Users still see the
+  # right-click->Open flow for an unsigned app, which is the best possible
+  # without a paid signing identity.
+  identity: null
+  extendInfo:
+    LSMinimumSystemVersion: "10.15"

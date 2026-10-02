@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback, useRef, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, KeyboardEvent as ReactKeyboardEvent, useMemo } from 'react';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import ErrorPanel from './components/ErrorPanel';
 import TopBar from './components/TopBar';
-import { RenderDiagramResponse } from '../preload';
+import CommandPalette from './components/CommandPalette';
+import StatusBar from './components/StatusBar';
+import { TEMPLATES, Template } from './templates';
+import { RenderDiagramResponse, DiagramRenderPayload } from '../preload';
 
 const DEFAULT_TEMPLATE = `@startuml
 Alice -> Bob: Hello
@@ -16,14 +19,33 @@ function App() {
     return saved || DEFAULT_TEMPLATE;
   });
   const [previewData, setPreviewData] = useState<string | null>(null);
+  const [multiDiagrams, setMultiDiagrams] = useState<DiagramRenderPayload[] | null>(null);
+  const [activeDiagram, setActiveDiagram] = useState(0);
   const [error, setError] = useState<RenderDiagramResponse['error'] | null>(null);
   const [isRendering, setIsRendering] = useState(false);
+  const [renderMs, setRenderMs] = useState<number | null>(null);
   const [format, setFormat] = useState<'svg' | 'png'>('svg');
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [diagramType, setDiagramType] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('openuml_theme') as 'dark' | 'light' | null;
     return saved || 'dark';
   });
   const [errorPanelOpen, setErrorPanelOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // Editor settings, persisted: word wrap, minimap, font size.
+  const [editorSettings, setEditorSettings] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('openuml_editor_settings') || '{}');
+      return {
+        wordWrap: saved.wordWrap ?? 'off',
+        minimap: saved.minimap ?? true,
+        fontSize: saved.fontSize ?? 14,
+      };
+    } catch {
+      return { wordWrap: 'off', minimap: true, fontSize: 14 };
+    }
+  });
   const renderTimeoutRef = useRef<NodeJS.Timeout>();
   const [isReady, setIsReady] = useState(false);
   const [paneRatio, setPaneRatio] = useState(52);
@@ -35,6 +57,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem('openuml_last_source', source);
   }, [source]);
+
+  // Persist editor settings
+  useEffect(() => {
+    localStorage.setItem('openuml_editor_settings', JSON.stringify(editorSettings));
+  }, [editorSettings]);
 
   // Apply theme
   useEffect(() => {
@@ -84,6 +111,7 @@ function App() {
   const renderDiagram = useCallback(async (umlSource: string) => {
     if (!umlSource.trim()) {
       setPreviewData(null);
+      setMultiDiagrams(null);
       setError(null);
       return;
     }
@@ -97,13 +125,32 @@ function App() {
         format,
       });
 
+      setRenderMs(response.renderMs ?? null);
+
+      if (response.diagrams && response.diagrams.length > 0) {
+        // Multi-diagram file: every block rendered separately.
+        setMultiDiagrams(response.diagrams);
+        const active = response.diagrams[Math.min(activeDiagram, response.diagrams.length - 1)];
+        if (active?.ok && active.data) {
+          setPreviewData(active.data);
+          setError(active.error ? active.error : null);
+        } else {
+          setPreviewData(null);
+          setError(active?.error ?? null);
+          setErrorPanelOpen(true);
+        }
+        return;
+      }
+
       if (response.ok && response.data) {
         setPreviewData(response.data);
+        setMultiDiagrams(null);
         setError(null);
         setErrorPanelOpen(false);
       } else if (response.error) {
         setError(response.error);
         setPreviewData(null);
+        setMultiDiagrams(null);
         setErrorPanelOpen(true);
       }
     } catch (err: any) {
@@ -113,11 +160,12 @@ function App() {
         details: err.message || 'Unknown error occurred',
       });
       setPreviewData(null);
+      setMultiDiagrams(null);
       setErrorPanelOpen(true);
     } finally {
       setIsRendering(false);
     }
-  }, [format]);
+  }, [format, activeDiagram]);
 
   // Debounced render
   useEffect(() => {
@@ -136,12 +184,34 @@ function App() {
     };
   }, [source, renderDiagram]);
 
+  // Switching the active diagram tab re-shows its payload without re-rendering.
+  useEffect(() => {
+    if (multiDiagrams && multiDiagrams.length > 0) {
+      const active = multiDiagrams[Math.min(activeDiagram, multiDiagrams.length - 1)];
+      if (active?.ok && active.data) {
+        setPreviewData(active.data);
+        setError(null);
+      } else {
+        setPreviewData(null);
+        setError(active?.error ?? null);
+      }
+    }
+  }, [activeDiagram]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track the diagram type from the source's @startXXX directive.
+  useEffect(() => {
+    const m = source.match(/^\s*@start([a-z]+)/im);
+    setDiagramType(m ? m[1].toLowerCase() : null);
+  }, [source]);
+
   const handleNew = useCallback(() => {
     setSource(DEFAULT_TEMPLATE);
     setCurrentFilePath(null);
     setPreviewData(null);
+    setMultiDiagrams(null);
     setError(null);
     setErrorPanelOpen(false);
+    setActiveDiagram(0);
   }, []);
 
   const handleOpen = useCallback(async () => {
@@ -149,6 +219,7 @@ function App() {
     if (!result.canceled && result.content) {
       setSource(result.content);
       setCurrentFilePath(result.path || null);
+      setActiveDiagram(0);
       setError(null);
       setErrorPanelOpen(false);
     } else if (result.error) {
@@ -189,48 +260,109 @@ function App() {
     }
   }, [previewData, format]);
 
+  const handleExportPdf = useCallback(async () => {
+    const result = await window.electronAPI.exportPdf(source, currentFilePath?.replace(/\.(puml|txt|pu)$/i, '.pdf') || 'diagram.pdf');
+    if (result.error) {
+      alert(`PDF export failed: ${result.error}`);
+    }
+  }, [source, currentFilePath]);
+
+  const handleCopyImage = useCallback(async () => {
+    if (!previewData) return;
+    const result = await window.electronAPI.copyImage(previewData, format);
+    if (!result.ok) {
+      alert(`Copy failed: ${result.error}`);
+    }
+  }, [previewData, format]);
+
+  const applyTemplate = useCallback((tpl: Template) => {
+    setSource(tpl.source);
+    setPaletteOpen(false);
+    setActiveDiagram(0);
+    setError(null);
+    setErrorPanelOpen(false);
+  }, []);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const commandPaletteActions = useMemo(() => ([
+    { id: 'new', label: 'New File', run: handleNew, keys: 'Ctrl+N' },
+    { id: 'save', label: 'Save', run: handleSave, keys: 'Ctrl+S' },
+    { id: 'render', label: 'Render Diagram', run: () => renderDiagram(source), keys: 'Ctrl+Shift+R' },
+    { id: 'export-svg', label: 'Export as SVG', run: () => handleExport('svg'), keys: 'Ctrl+Shift+G' },
+    { id: 'export-png', label: 'Export as PNG', run: () => handleExport('png'), keys: 'Ctrl+Shift+P' },
+    { id: 'export-pdf', label: 'Export as PDF', run: handleExportPdf, keys: '' },
+    { id: 'copy-image', label: 'Copy Image to Clipboard', run: handleCopyImage, keys: 'Ctrl+Shift+C' },
+    { id: 'toggle-theme', label: 'Toggle Theme', run: toggleTheme, keys: '' },
+    { id: 'toggle-wrap', label: editorSettings.wordWrap === 'on' ? 'Disable Word Wrap' : 'Enable Word Wrap', run: () => setEditorSettings((s: any) => ({ ...s, wordWrap: s.wordWrap === 'on' ? 'off' : 'on' })), keys: '' },
+    { id: 'toggle-minimap', label: editorSettings.minimap ? 'Hide Minimap' : 'Show Minimap', run: () => setEditorSettings((s: any) => ({ ...s, minimap: !s.minimap })), keys: '' },
+    { id: 'font-up', label: 'Increase Font Size', run: () => setEditorSettings((s: any) => ({ ...s, fontSize: Math.min(28, s.fontSize + 1) })), keys: '' },
+    { id: 'font-down', label: 'Decrease Font Size', run: () => setEditorSettings((s: any) => ({ ...s, fontSize: Math.max(10, s.fontSize - 1) })), keys: '' },
+    { id: 'check-updates', label: 'Check for Updates', run: async () => {
+      const info = await window.electronAPI.checkUpdates();
+      if (info.ok && info.updateAvailable) {
+        if (confirm(`Update available: ${info.latest} (you have ${info.current}). Open the release page?`)) {
+          window.electronAPI.openExternal(info.url!);
+        }
+      } else if (info.ok) {
+        alert(`You are up to date (${info.current}).`);
+      } else {
+        alert('Could not check for updates.');
+      }
+    }, keys: '' },
+    ...TEMPLATES.map((tpl) => ({
+      id: `template-${tpl.name}`,
+      label: `Template: ${tpl.name}`,
+      run: () => applyTemplate(tpl),
+      keys: '',
+    })),
+  ]), [handleNew, handleSave, handleExport, handleExportPdf, handleCopyImage, renderDiagram, source, editorSettings, applyTemplate]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+N: New
+      // Ctrl+Shift+P opens the command palette unless already claimed by PNG export
+      // (CmdOrCtrl+Shift+P is Export PNG in menus; palette uses Ctrl+P plain in
+      // monaco-free zones and Ctrl+Shift+K here to avoid the clash).
+      if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      }
       if (e.ctrlKey && e.key === 'n' && !e.shiftKey) {
         e.preventDefault();
         handleNew();
       }
-      // Ctrl+S: Save
       if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         handleSave();
       }
-      // Ctrl+Shift+S: Save As
       if (e.ctrlKey && e.shiftKey && e.key === 'S') {
         e.preventDefault();
         handleSaveAs();
       }
-      // Ctrl+Shift+R: Render
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {
         e.preventDefault();
         renderDiagram(source);
       }
-      // Ctrl+Shift+G: Export as SVG
       if (e.ctrlKey && e.shiftKey && e.key === 'G') {
         e.preventDefault();
         handleExport('svg');
       }
-      // Ctrl+Shift+P: Export as PNG
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         handleExport('png');
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        handleCopyImage();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNew, handleSave, handleSaveAs, handleExport, renderDiagram, source]);
+  }, [handleNew, handleSave, handleSaveAs, handleExport, handleCopyImage, renderDiagram, source]);
 
   // Menu actions
   useEffect(() => {
@@ -257,11 +389,29 @@ function App() {
         case 'export-png':
           handleExport('png');
           break;
+        case 'export-pdf':
+          handleExportPdf();
+          break;
+        case 'copy-image':
+          handleCopyImage();
+          break;
       }
     });
 
     return cleanup;
-  }, [handleNew, handleOpen, handleSave, handleSaveAs, handleExport, renderDiagram, source]);
+  }, [handleNew, handleOpen, handleSave, handleSaveAs, handleExport, handleExportPdf, handleCopyImage, renderDiagram, source]);
+
+  // Recent files opened from the menu.
+  useEffect(() => {
+    const cleanup = window.electronAPI.onRecentFileOpened(({ content, path }) => {
+      setSource(content);
+      setCurrentFilePath(path);
+      setActiveDiagram(0);
+      setError(null);
+      setErrorPanelOpen(false);
+    });
+    return cleanup;
+  }, []);
 
   return (
     <div className={`app-shell ${theme === 'dark' ? 'theme-dark' : 'theme-light'} ${isReady ? 'app-shell--ready' : ''}`}>
@@ -272,9 +422,12 @@ function App() {
           onNew={handleNew}
           onRender={() => renderDiagram(source)}
           onExport={handleExport}
+          onExportPdf={handleExportPdf}
+          onCopyImage={handleCopyImage}
           onOpen={handleOpen}
           onSave={handleSave}
           onThemeToggle={toggleTheme}
+          onPaletteOpen={() => setPaletteOpen(true)}
           theme={theme}
           canExport={!!previewData}
           isRendering={isRendering}
@@ -296,6 +449,10 @@ function App() {
                 onChange={setSource}
                 error={error}
                 theme={theme}
+                wordWrap={editorSettings.wordWrap}
+                minimap={editorSettings.minimap}
+                fontSize={editorSettings.fontSize}
+                onCursorPosition={(line, column) => setCursorPosition({ line, column })}
               />
             </div>
             <button
@@ -314,10 +471,22 @@ function App() {
                 isRendering={isRendering}
                 format={format}
                 theme={theme}
+                diagrams={multiDiagrams}
+                activeDiagram={activeDiagram}
+                onSelectDiagram={setActiveDiagram}
               />
             </div>
           </div>
         </div>
+
+        <StatusBar
+          theme={theme}
+          filePath={currentFilePath}
+          cursorPosition={cursorPosition}
+          diagramType={diagramType}
+          renderMs={renderMs}
+          diagramCount={multiDiagrams?.length ?? null}
+        />
 
         {error && (
           <ErrorPanel
@@ -325,6 +494,14 @@ function App() {
             isOpen={errorPanelOpen}
             onToggle={() => setErrorPanelOpen(!errorPanelOpen)}
             theme={theme}
+          />
+        )}
+
+        {paletteOpen && (
+          <CommandPalette
+            theme={theme}
+            actions={commandPaletteActions}
+            onClose={() => setPaletteOpen(false)}
           />
         )}
       </div>
@@ -371,4 +548,3 @@ function App() {
 }
 
 export default App;
-

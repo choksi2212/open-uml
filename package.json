@@ -1,6 +1,6 @@
 {
   "name": "open-uml",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A completely offline, smooth, modern PlantUML editor with bundled rendering engine",
   "main": "dist-electron/main/index.js",
   "author": "Open UML",
@@ -45,22 +45,28 @@
   "build": {
     "appId": "com.openuml.app",
     "productName": "Open UML",
-    "publish": null,
     "directories": {
       "output": "build"
     },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "app/plantuml/**/*",
       "app/assets/**/*",
       "package.json"
     ],
     "asar": true,
     "extraResources": [
       {
-        "from": "app/plantuml",
-        "to": "plantuml"
+        "from": "app/plantuml/plantuml.jar",
+        "to": "plantuml/plantuml.jar"
+      },
+      {
+        "from": "app/plantuml/plantuml-pdf-1.2025.10.jar",
+        "to": "plantuml/plantuml-pdf.jar"
+      },
+      {
+        "from": "app/plantuml/jre-win",
+        "to": "plantuml/jre-win"
       }
     ],
     "win": {
@@ -78,7 +84,11 @@
       "target": "dmg",
       "icon": "app/assets/icon.icns",
       "artifactName": "OpenUML-${version}.dmg",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "extendInfo": {
+        "LSMinimumSystemVersion": "10.15"
+      }
     }
   }
 }
