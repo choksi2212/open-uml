@@ -1,0 +1,49 @@
+npm notice run open-uml@1.1.0 dev
+npm notice run vite
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+[36mvite v5.4.21 [32mbuilding for development...[36m[39m
+[36m
+watching for file changes...[39m
+[36mvite v5.4.21 [32mbuilding for development...[36m[39m
+[36m
+watching for file changes...[39m
+[36m
+build started...[39m
+[36m
+build started...[39m
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m255[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+transforming...
+transforming...
+[32m✓[39m 1 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist-electron/preload/[22m[36mpreload.js  [39m[1m[2m1.78 kB[22m[1m[22m[2m │ gzip: 0.51 kB[22m
+[36mbuilt in 280ms.[39m
+[32m✓[39m 389 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist-electron/main/[22m[36mindex.js          [39m[1m[2m 21.91 kB[22m[1m[22m[2m │ gzip:   5.64 kB[22m
+[2mdist-electron/main/[22m[36mmain-x9PMZvtr.js  [39m[1m[33m504.45 kB[39m[22m[2m │ gzip: 109.03 kB[22m
+[36mbuilt in 1086ms.[39m
+N:\open-uml\node_modules\electron\index.js:17
+    throw new Error('Electron failed to install correctly, please delete node_modules/electron and try installing again');
+          ^
+
+Error: Electron failed to install correctly, please delete node_modules/electron and try installing again
+    at getElectronPath (N:\open-uml\node_modules\electron\index.js:17:11)
+    at Object.<anonymous> (N:\open-uml\node_modules\electron\index.js:21:18)
+    at Module._compile (node:internal/modules/cjs/loader:1854:14)
+    at Object..js (node:internal/modules/cjs/loader:1985:10)
+    at Module.load (node:internal/modules/cjs/loader:1577:32)
+    at Module._load (node:internal/modules/cjs/loader:1379:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:326:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:231:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+
+Node.js v24.16.0

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "open-uml-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["preview.cjs"],
+      "port": 8765
+    }
+  ]
+}

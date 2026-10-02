@@ -1,28 +1,45 @@
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  /** Optional class for the chevron icon (defaults to fg-muted). */
+  chevronClassName?: string;
+}
 
+/**
+ * Themed <select>. Renders a Lucide chevron overlay rather than the
+ * native one (the native chevron can't be themed and clashes with the
+ * chevron-over-text offset that the OS draws). The native <select>
+ * popover itself is still OS-rendered - that's a deliberate trade-off;
+ * a fully custom dropdown would lose mobile / keyboard accessibility.
+ */
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { className, children, ...rest },
+  { className, children, chevronClassName, ...rest },
   ref,
 ) {
   return (
-    <select
-      ref={ref}
-      className={cn(
-        'h-8 px-2 pr-7 rounded-md border text-sm font-medium',
-        'bg-[var(--surface-1)] text-[var(--fg)] border-[var(--border)]',
-        'hover:bg-[var(--surface-2)] cursor-pointer appearance-none',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg)]',
-        'bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat',
-        // tiny inline chevron via background image (svg as data url)
-        "bg-[url('data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>')]",
-        className,
-      )}
-      {...rest}
-    >
-      {children}
-    </select>
+    <div className="relative inline-block">
+      <select
+        ref={ref}
+        className={cn(
+          'h-8 pl-2 pr-8 rounded-md border text-sm font-medium appearance-none',
+          'bg-[var(--surface-1)] text-[var(--fg)] border-[var(--border)]',
+          'hover:bg-[var(--surface-2)] cursor-pointer',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg)]',
+          className,
+        )}
+        {...rest}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        className={cn(
+          'pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-fg-muted',
+          chevronClassName,
+        )}
+        aria-hidden
+      />
+    </div>
   );
 });

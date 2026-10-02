@@ -65,9 +65,10 @@ def main() -> None:
     gen_ico(LOGOS / "png" / "light" / "app-icon-1024.png", ASSETS / "icon.ico")
     gen_icns(LOGOS / "png" / "light" / "app-icon-1024.png", ASSETS / "icon.icns")
 
-    # TopBar monogram - both themes.
-    copy(LOGOS / "png" / "light" / "monogram-256.png", ASSETS / "_monogram-light.png")
-    copy(LOGOS / "png" / "dark" / "monogram-256.png", ASSETS / "_monogram-dark.png")
+    # TopBar full wordmark - mark + "Open UML" traced from Plex Sans,
+    # themed via theme prop in TopBar.tsx. SVG stays sharp at any size.
+    copy(LOGOS / "svg" / "light" / "wordmark-full.svg", ASSETS / "_wordmark-light.svg")
+    copy(LOGOS / "svg" / "dark" / "wordmark-full.svg", ASSETS / "_wordmark-dark.svg")
 
     # Social avatar - light theme reads on both light and dark GitHub/Twitter.
     copy(LOGOS / "png" / "light" / "social-avatar-400.png", ASSETS / "social-avatar.png")

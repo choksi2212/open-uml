@@ -133,31 +133,38 @@ export function registerPlantumlLanguage(monaco: Monaco): void {
         // types / shapes
         [new RegExp(`\\b(${KEYWORDS_TYPES.join('|')})\\b`, 'i'), 'type'],
 
-        // preprocessor
+        // preprocessor (must come BEFORE single-line comments so that
+        // '!include' isn't eaten by the comment rule)
         [new RegExp(`(@|!)\\s*(${KEYWORDS_PREPROC.join('|')})\\b`, 'i'), 'keyword.preproc'],
 
         // arrows
         [new RegExp(`(${ARROWS.map((a) => a.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('|')})`), 'operator'],
 
-        // strings
+        // block comment open /' - before strings so a /' inside a string
+        // doesn't accidentally start a comment
+        [/\/'/, 'comment', '@comment'],
+
+        // strings - keep BEFORE any single-quote rule so quoted strings
+        // aren't lost to the (legacy) line-comment regex
         [/"([^"\\]|\\.)*"/, 'string'],
         [/'([^'\\]|\\.)*'/, 'string'],
 
         // numbers
         [/\b\d+(\.\d+)?\b/, 'number'],
 
-        // comments (PlantUML uses ' for single-line, /' ... '/ for block)
-        [/'.*$/, 'comment'],
-        [/\/'/, 'comment', '@comment'],
-
         // identifiers
         [/[a-zA-Z_][\w-]*/, 'identifier'],
+
+        // catch-all so the tokenizer always makes progress - a stray
+        // '@' or unknown character would otherwise halt tokenization.
+        [/./, 'text'],
       ],
 
       comment: [
-        [/[^/]+/, 'comment'],
+        // Block comment closer must come first so it wins over the
+        // single-char catch-all. Monarch matches rules top-down.
         [/\/'/, 'comment', '@pop'],
-        [/[/]/, 'comment'],
+        [/./, 'comment'],
       ],
     },
   });

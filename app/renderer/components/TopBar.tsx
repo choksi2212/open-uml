@@ -15,8 +15,8 @@ import { IconButton } from './ui/IconButton';
 import { Select } from './ui/Select';
 import { Separator } from './ui/Separator';
 import { Tooltip } from './ui/Tooltip';
-import monogramLight from '../../assets/_monogram-light.png';
-import monogramDark from '../../assets/_monogram-dark.png';
+import wordmarkLight from '../../assets/_wordmark-light.svg';
+import wordmarkDark from '../../assets/_wordmark-dark.svg';
 
 interface TopBarProps {
   onNew: () => void;
@@ -57,24 +57,23 @@ export function TopBar({
     <header
       className="
         flex items-center justify-between
-        h-12 px-3
+        h-12 pl-4 pr-3
         border-b border-border
         bg-bg-elevated
         shrink-0
       "
     >
-      {/* Left: brand + product name */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      {/* Left: full brand wordmark (mark + text, themed). SVG scales
+         cleanly so the wordmark stays sharp at any width. h-8 makes the
+         mark legible - at smaller sizes the 1.5% stroke becomes hairline. */}
+      <div className="flex items-center min-w-0">
         <img
-          src={theme === 'dark' ? monogramDark : monogramLight}
-          alt=""
-          className="h-6 w-6 rounded shrink-0"
-          aria-hidden
-          width={24}
-          height={24}
+          src={theme === 'dark' ? wordmarkDark : wordmarkLight}
+          alt="Open UML"
+          className="h-8 w-auto shrink-0 select-none"
+          draggable={false}
+          height={32}
         />
-        <span className="text-sm font-semibold tracking-tight text-fg">Open UML</span>
-        <span className="hidden sm:inline text-xs text-fg-subtle">offline PlantUML editor</span>
       </div>
 
       {/* Right: actions */}
