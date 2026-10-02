@@ -36,3 +36,6 @@ linter-debug.log*
 Thumbs.db
 
 build.log
+dev.log
+preview.log
+preview.cjs
