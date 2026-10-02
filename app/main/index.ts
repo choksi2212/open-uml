@@ -546,6 +546,49 @@ ipcMain.handle('check-updates', async () => {
   };
 });
 
+// ---------------------------------------------------------------------------
+// electron-updater (silent background updater; only enabled in packaged
+// builds that are code-signed). Disabled in dev / unsigned builds - the
+// existing GitHub-releases checker above handles those.
+// ---------------------------------------------------------------------------
+
+async function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+  try {
+    const { autoUpdater } = await import('electron-updater');
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('update-available', (info) => {
+      // We surface this through the existing menu dialog too.
+      dialog.showMessageBox(mainWindow!, {
+        type: 'info',
+        title: 'Downloading update',
+        message: `Open UML ${info.version} is downloading in the background.`,
+        detail: 'You will be prompted to install it when the download completes.',
+      });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      const choice = dialog.showMessageBoxSync(mainWindow!, {
+        type: 'info',
+        title: 'Update ready',
+        message: `Open UML ${info.version} has been downloaded.`,
+        detail: 'Restart now to install, or continue working and install on quit.',
+        buttons: ['Restart now', 'On next launch'],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (choice === 0) autoUpdater.quitAndInstall();
+    });
+    autoUpdater.on('error', () => {
+      // Swallow - the manual checker is the fallback for unsigned builds.
+    });
+    await autoUpdater.checkForUpdates();
+  } catch {
+    // electron-updater not available (unsigned build, missing config, etc.)
+    // Fall back to the manual GitHub-releases checker above.
+  }
+}
+
 app.setAppUserModelId('com.openuml.app');
 
 // ---------------------------------------------------------------------------
@@ -619,7 +662,12 @@ app.whenReady().then(() => {
   });
 
   // Silent update check once per session, shortly after launch.
-  setTimeout(() => checkForUpdates(false), 5000);
+  // Prefer electron-updater (auto-install on quit) when available; fall
+  // back to the GitHub-releases checker otherwise.
+  setTimeout(() => {
+    void setupAutoUpdater();
+    void checkForUpdates(false);
+  }, 5000);
 });
 
 app.on('window-all-closed', () => {

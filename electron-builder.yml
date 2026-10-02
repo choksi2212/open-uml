@@ -2,6 +2,15 @@ appId: com.openuml.app
 productName: Open UML
 directories:
   output: build
+
+# Publish metadata so electron-updater can find new releases on GitHub.
+# The actual update flow is gated to signed builds; unsigned builds
+# fall back to the manual "Check for Updates" GitHub-releases flow.
+publish:
+  provider: github
+  releaseType: release
+  repo: open-uml
+  owner: choksi2212
 files:
   - dist/**/*
   - dist-electron/**/*
