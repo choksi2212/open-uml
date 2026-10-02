@@ -344,18 +344,32 @@ function App() {
   // --- Drag and drop ------------------------------------------------------
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
     };
     const onDrop = async (e: DragEvent) => {
       e.preventDefault();
       const file = e.dataTransfer?.files?.[0];
       if (!file) return;
-      const path = (file as any).path as string | undefined;
-      if (!path) return;
-      const result = await window.electronAPI.openFile();
-      // openFile already handles the dialog; for drag-drop we'd need a separate IPC.
-      // Keep this for future use; noop for now.
-      void result;
+      // Electron sets a non-standard `path` on File objects dropped from
+      // the OS; if it's missing we can't resolve the file.
+      const filePath = (file as unknown as { path?: string }).path;
+      if (!filePath) return;
+      if (isDirty && !window.confirm(`Discard unsaved changes and open ${file.name}?`)) return;
+      const result = await window.electronAPI.readFileByPath(filePath);
+      if (result.error) {
+        window.alert(`Open failed: ${result.error}`);
+        return;
+      }
+      if (result.content !== undefined) {
+        setSource(result.content);
+        setSavedSource(result.content);
+        setCurrentFilePath(result.path || null);
+        setActiveDiagram(0);
+        setError(null);
+        setErrorPanelOpen(false);
+      }
     };
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
@@ -363,7 +377,7 @@ function App() {
       window.removeEventListener('dragover', onDragOver);
       window.removeEventListener('drop', onDrop);
     };
-  }, []);
+  }, [isDirty]);
 
   // --- Command palette actions --------------------------------------------
   const commandPaletteActions: PaletteAction[] = useMemo(() => {
@@ -509,6 +523,19 @@ function App() {
   // --- Recent files from the native menu ---------------------------------
   useEffect(() => {
     return window.electronAPI.onRecentFileOpened(({ content, path }) => {
+      if (isDirty && !window.confirm('Discard unsaved changes?')) return;
+      setSource(content);
+      setSavedSource(content);
+      setCurrentFilePath(path);
+      setActiveDiagram(0);
+      setError(null);
+      setErrorPanelOpen(false);
+    });
+  }, [isDirty]);
+
+  // --- Files opened from the OS (double-click .puml, "Open With", argv) ---
+  useEffect(() => {
+    return window.electronAPI.onOsOpenedFile(({ content, path }) => {
       if (isDirty && !window.confirm('Discard unsaved changes?')) return;
       setSource(content);
       setSavedSource(content);

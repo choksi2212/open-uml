@@ -46,6 +46,14 @@ function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  // Drain any files that the OS asked us to open before the window was ready.
+  mainWindow.webContents.once('did-finish-load', () => {
+    while (pendingFileOpen.length > 0) {
+      const next = pendingFileOpen.shift()!;
+      sendFileToRenderer(next);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -535,6 +543,25 @@ ipcMain.handle('open-external', async (_, url: string) => {
   await shell.openExternal(url);
 });
 
+// IPC: Read a file by absolute path (used by renderer drag-and-drop).
+// The openFile dialog already does this through showOpenDialog, but
+// drag-and-drop hands us a path directly without going through the OS
+// dialog, so we need a path-based variant.
+ipcMain.handle('read-file-by-path', async (_, filePath: string) => {
+  if (!filePath) return { canceled: true };
+  if (!existsSync(filePath)) {
+    return { canceled: false, error: `File not found: ${filePath}` };
+  }
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    currentFilePath = filePath;
+    await addRecent(filePath);
+    return { canceled: false, content, path: filePath };
+  } catch (error: any) {
+    return { canceled: false, error: error.message };
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Update checker (GitHub releases; checks only, never auto-installs)
 // ---------------------------------------------------------------------------
@@ -602,9 +629,68 @@ ipcMain.handle('check-updates', async () => {
 
 app.setAppUserModelId('com.openuml.app');
 
+// ---------------------------------------------------------------------------
+// Single-instance + OS-level "open with" handling
+// ---------------------------------------------------------------------------
+//
+// When the user double-clicks a .puml file while the app is already running,
+// the OS starts a second instance. We grab the single-instance lock so the
+// second process immediately exits and forwards its argv to us via the
+// 'second-instance' event. On macOS the equivalent is 'open-file', which
+// can fire before or after app.whenReady.
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+  // The second-instance event in the primary process will pick up the file.
+}
+
+// Files queued from the OS before the window is ready to receive them.
+const pendingFileOpen: string[] = [];
+
+// macOS: 'open-file' can fire before app.whenReady resolves.
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  if (mainWindow && !mainWindow.webContents.isLoading()) {
+    sendFileToRenderer(path);
+  } else {
+    pendingFileOpen.push(path);
+  }
+});
+
+// Windows/Linux: a second launch (or first launch with a file argument)
+// forwards its argv. The first element is the executable; the rest may
+// include one or more file paths.
+app.on('second-instance', (_event, argv) => {
+  const filePath = argv.slice(1).find((a) => /\.(puml|plantuml|pu|txt)$/i.test(a));
+  if (filePath) sendFileToRenderer(filePath);
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+function sendFileToRenderer(filePath: string) {
+  if (!existsSync(filePath)) {
+    dialog.showErrorBox('File not found', `Could not open:\n${filePath}`);
+    return;
+  }
+  readFile(filePath, 'utf-8')
+    .then((content) => {
+      currentFilePath = filePath;
+      mainWindow?.webContents.send('open-file-from-os', { content, path: filePath });
+      return addRecent(filePath);
+    })
+    .catch((err: any) => dialog.showErrorBox('Could not open file', err.message));
+}
+
 app.whenReady().then(() => {
   createWindow();
   setApplicationMenu();
+
+  // Pick up a file path passed on the initial command line (Windows/Linux).
+  const argvPath = process.argv.slice(1).find((a) => /\.(puml|plantuml|pu|txt)$/i.test(a));
+  if (argvPath) pendingFileOpen.push(argvPath);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -621,5 +707,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-}
-)
+});

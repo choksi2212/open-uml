@@ -86,7 +86,13 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "fileAssociations": [
+        { "ext": "puml", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" },
+        { "ext": "plantuml", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" },
+        { "ext": "iuml", "name": "PlantUML Include File", "description": "PlantUML Include File", "role": "Editor" },
+        { "ext": "pu", "name": "PlantUML Diagram", "description": "PlantUML Source File", "role": "Editor" }
+      ]
     },
     "mac": {
       "target": "dmg",
