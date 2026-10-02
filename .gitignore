@@ -39,3 +39,4 @@ build.log
 dev.log
 preview.log
 preview.cjs
+dist.log
