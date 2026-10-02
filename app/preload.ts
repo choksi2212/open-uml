@@ -86,6 +86,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
   },
 
+  onOsOpenedFile: (callback: (payload: { content: string; path: string }) => void) => {
+    const handler = (_: any, payload: { content: string; path: string }) => callback(payload);
+    ipcRenderer.on('open-file-from-os', handler);
+    return () => {
+      ipcRenderer.removeListener('open-file-from-os', handler);
+    };
+  },
+
+  readFileByPath: (filePath: string): Promise<FileOperationResult> =>
+    ipcRenderer.invoke('read-file-by-path', filePath),
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 });
@@ -103,6 +114,8 @@ declare global {
       checkUpdates: () => Promise<UpdateInfo>;
       onMenuAction: (callback: (action: string) => void) => () => void;
       onRecentFileOpened: (callback: (payload: { content: string; path: string }) => void) => () => void;
+      onOsOpenedFile: (callback: (payload: { content: string; path: string }) => void) => () => void;
+      readFileByPath: (filePath: string) => Promise<FileOperationResult>;
       openExternal: (url: string) => Promise<void>;
     };
   }
