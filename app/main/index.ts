@@ -4,6 +4,12 @@ import { join, dirname } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { createWriteStream } from 'fs';
+import {
+  splitDiagrams,
+  parsePlantumlError,
+  looksLikeErrorImage,
+  DiagramRenderResult,
+} from './plantuml-parser';
 
 let mainWindow: BrowserWindow | null = null;
 let currentFilePath: string | null = null;
@@ -97,93 +103,6 @@ function getLibClasspath(): string[] {
   const jarDir = dirname(getPlantUMLPath());
   const companions = [join(jarDir, 'plantuml-pdf.jar')];
   return companions.filter((p) => existsSync(p));
-}
-
-const DIAGRAM_START = /^\s*@(startuml|startmindmap|startgantt|startsalt|startjson|startyaml|startwireframe|startdot|startmermaid|startcreole|startmath|startditaa|startebnf|startregex|startflow|startstack|startchronology|startmonthlyplanner|startnetwork|startnwdiag|starttiming|starttree|startwbs|startarchimate|startbpm|startc4|startsitemap|startboard|startgalaxy|startgit|starthcl)/i;
-
-// splitDiagrams breaks a source into individual @startXXX blocks. PlantUML's
-// -pipe mode renders only the first diagram of a multi-diagram file, while
-// planttext.com renders all of them, which is why files with several
-// diagrams appeared to "not work" in Open UML.
-function splitDiagrams(source: string): string[] {
-  const lines = source.split('\n');
-  const diagrams: string[] = [];
-  let current: string[] = [];
-  let inside = false;
-  let endMarker: string | null = null;
-
-  for (const line of lines) {
-    const startMatch = line.match(DIAGRAM_START);
-    if (!inside && startMatch) {
-      inside = true;
-      endMarker = `@end${startMatch[1].slice(5).toLowerCase()}`;
-      current = [line];
-      continue;
-    }
-    if (inside) {
-      current.push(line);
-      // tolerate @enduml closing any block type, the way PlantUML does
-      if (line.trim().toLowerCase() === '@enduml' || (endMarker && line.trim().toLowerCase() === endMarker)) {
-        diagrams.push(current.join('\n'));
-        current = [];
-        inside = false;
-        endMarker = null;
-      }
-    }
-  }
-  // An unterminated block still renders in PlantUML; keep it.
-  if (inside && current.length > 0) {
-    diagrams.push(current.join('\n'));
-  }
-  if (diagrams.length === 0 && source.trim() !== '') {
-    diagrams.push(source);
-  }
-  return diagrams;
-}
-
-// PlantUML writes a rendered error IMAGE with exit code 0 for syntax errors,
-// so "exit 0 + non-empty stdout" is not success. The error image carries
-// these markers, and stderr carries the line number in PlantUML's own format
-// ("ERROR\n3\nSyntax Error?"), which the old `line: N` regex never matched.
-function looksLikeErrorImage(output: Buffer): boolean {
-  const head = output.subarray(0, Math.min(4096, output.length)).toString('utf-8');
-  if (!head.includes('<svg')) {
-    return false;
-  }
-  return (
-    head.includes('Syntax Error') ||
-    head.toLowerCase().includes('cannot find') ||
-    head.includes('Preprocessing error') ||
-    head.toLowerCase().includes('preprocessor error') ||
-    head.includes('null pointer exception')
-  );
-}
-
-function parsePlantumlError(stderr: string, output: Buffer): { line: number; shortMessage: string; details: string } {
-  // stderr format for a syntax error: "ERROR\n<line>\n<message>"
-  const errMatch = stderr.match(/^ERROR\s*\n\s*(\d+)\s*\n([\s\S]*)$/);
-  if (errMatch) {
-    return {
-      line: parseInt(errMatch[1], 10) || 0,
-      shortMessage: errMatch[2].trim().split('\n')[0] || 'Syntax error',
-      details: stderr,
-    };
-  }
-  const lineMatch = stderr.match(/line\s*[:=]?\s*(\d+)/i);
-  const details = stderr || output.subarray(0, 2000).toString('utf-8');
-  return {
-    line: lineMatch ? parseInt(lineMatch[1], 10) : 0,
-    shortMessage: stderr.trim().split('\n')[0] || 'Rendering failed',
-    details,
-  };
-}
-
-interface DiagramRenderResult {
-  ok: boolean;
-  format?: 'svg' | 'png';
-  data?: string;
-  error?: { line: number; shortMessage: string; details: string };
-  renderMs?: number;
 }
 
 // renderOne renders a single diagram block through the bundled JRE.
