@@ -169,6 +169,27 @@ kbd {
 }
 
 /* ------------------------------------------------------------------
+ * Inlined SVG diagrams. PlantUML's SVG is sized via the viewBox or
+ * width/height attributes; the wrapper scales it inside the preview
+ * pane while preserving aspect ratio. We give the inner <svg> a
+ * solid background so transparent regions don't show through to the
+ * graph paper underneath (which would make the diagram visually
+ * "noisy" against the dot grid).
+ * ------------------------------------------------------------------ */
+.diagram-svg svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  /* Avoid the SVG default of preserving text-as-text on selection. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ------------------------------------------------------------------
  * Respects prefers-reduced-motion - subtle but expected.
  * ------------------------------------------------------------------ */
 @media (prefers-reduced-motion: reduce) {

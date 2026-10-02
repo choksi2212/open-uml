@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ZoomIn, ZoomOut, Maximize2, AlertTriangle, Loader2, FileImage } from 'lucide-react';
 import { IconButton } from './ui/IconButton';
 import { Tooltip } from './ui/Tooltip';
@@ -30,6 +30,22 @@ export function Preview({
   const panStart = useRef({ x: 0, y: 0, mouseX: 0, mouseY: 0 });
   const stageRef = useRef<HTMLDivElement>(null);
 
+  // Decode the data URL once per render so we can inline the SVG. Inline
+  // rendering makes text inside the diagram selectable + copyable, and
+  // allows CSS-based recoloring for the dark theme.
+  const decoded = useMemo(() => decodeDataUrl(data), [data]);
+  const isSvg = decoded?.mimeType === 'image/svg+xml';
+  const inlineSvg = useMemo(() => {
+    if (!isSvg || !decoded) return null;
+    try {
+      return new TextDecoder().decode(decoded.bytes);
+    } catch {
+      return null;
+    }
+  }, [isSvg, decoded]);
+
+  const nativeSize = useMemo(() => measureSvg(inlineSvg), [inlineSvg]);
+
   const zoomBy = useCallback((delta: number) => {
     setZoom((prev) => {
       const next = Math.round((prev + delta) * 100) / 100;
@@ -42,13 +58,16 @@ export function Preview({
     setPan({ x: 0, y: 0 });
   }, []);
 
-  // Reset view on new data.
+  const actualSize = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
   useEffect(() => {
     setZoom(ZOOM_DEFAULT);
     setPan({ x: 0, y: 0 });
   }, [data, format]);
 
-  // Scroll-to-zoom anywhere on the preview.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -62,7 +81,6 @@ export function Preview({
     return () => stage.removeEventListener('wheel', onWheel);
   }, [zoomBy]);
 
-  // Spacebar-held enables pan regardless of zoom.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isSpaceHeld && !isEditableTarget(e.target)) {
@@ -116,14 +134,12 @@ export function Preview({
         'flex flex-col h-full bg-bg-elevated border border-border rounded-md overflow-hidden',
       )}
     >
-      {/* Header */}
       <div
         className={cn(
-          'h-9 px-3 flex items-center justify-between border-b border-border',
-          'bg-bg-elevated',
+          'h-9 px-3 flex items-center justify-between border-b border-border bg-bg-elevated',
         )}
       >
-        <span className="text-[11px] font-medium text-fg-muted tracking-wide uppercase">
+        <span className="text-[11px] font-medium text-fg-muted uppercase tracking-wide">
           Preview
         </span>
         <div className="flex items-center gap-1">
@@ -134,6 +150,18 @@ export function Preview({
                 label="Fit to window"
                 size="sm"
                 onClick={resetView}
+              />
+            </Tooltip>
+          )}
+          {data && isSvg && nativeSize && (
+            <Tooltip content="Actual size (1:1)">
+              <IconButton
+                icon={
+                  <span className="text-[10px] font-mono font-semibold">1:1</span>
+                }
+                label="Actual size"
+                size="sm"
+                onClick={actualSize}
               />
             </Tooltip>
           )}
@@ -161,12 +189,10 @@ export function Preview({
         </div>
       </div>
 
-      {/* Diagram tabs */}
       {showTabs && (
         <div
           className={cn(
-            'flex items-stretch gap-px px-2 py-1 border-b border-border overflow-x-auto',
-            'bg-bg-elevated',
+            'flex items-stretch gap-px px-2 py-1 border-b border-border overflow-x-auto bg-bg-elevated',
           )}
         >
           {diagrams!.map((d, i) => (
@@ -189,7 +215,6 @@ export function Preview({
         </div>
       )}
 
-      {/* Stage */}
       <div
         ref={stageRef}
         className={cn(
@@ -202,6 +227,20 @@ export function Preview({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-fg-muted">
             <Loader2 className="h-6 w-6 animate-spin text-accent" />
             <span className="text-xs">Rendering</span>
+          </div>
+        ) : data && inlineSvg ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className="diagram-svg transition-transform duration-150 ease-out"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: 'center',
+                willChange: 'transform',
+              }}
+              // PlantUML SVG output is well-formed and from a local trusted
+              // subprocess - no untrusted SVG ever reaches here.
+              dangerouslySetInnerHTML={{ __html: inlineSvg }}
+            />
           </div>
         ) : data ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -233,8 +272,54 @@ export function Preview({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+}
+
+function decodeDataUrl(dataUrl: string | null): { mimeType: string; bytes: Uint8Array } | null {
+  if (!dataUrl) return null;
+  const m = /^data:([^;,]+)(;base64)?,(.*)$/.exec(dataUrl);
+  if (!m) return null;
+  const [, mimeType, isBase64, payload] = m;
+  if (!isBase64) {
+    return { mimeType, bytes: new TextEncoder().encode(decodeURIComponent(payload)) };
+  }
+  const bin = atob(payload);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { mimeType, bytes };
+}
+
+/**
+ * Best-effort read of the diagram's natural pixel size from the SVG
+ * viewBox or width/height. Drives the "actual size" button (1:1 mapping
+ * once the SVG is laid out at its native size).
+ */
+function measureSvg(svgText: string | null): { width: number; height: number } | null {
+  if (!svgText) return null;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== 'svg') return null;
+    const vb = svg.getAttribute('viewBox');
+    if (vb) {
+      const parts = vb.split(/\s+/).map(Number);
+      if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+        return { width: parts[2], height: parts[3] };
+      }
+    }
+    const w = Number(svg.getAttribute('width'));
+    const h = Number(svg.getAttribute('height'));
+    if (Number.isFinite(w) && Number.isFinite(h)) return { width: w, height: h };
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
