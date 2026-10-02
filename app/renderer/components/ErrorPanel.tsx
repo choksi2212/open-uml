@@ -1,76 +1,50 @@
-import React from 'react';
+import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { RenderDiagramResponse } from '../../preload';
+import { cn } from '../lib/cn';
 
 interface ErrorPanelProps {
   error: RenderDiagramResponse['error'];
   isOpen: boolean;
   onToggle: () => void;
-  theme: 'dark' | 'light';
 }
 
-const ErrorPanel: React.FC<ErrorPanelProps> = ({ error, isOpen, onToggle, theme }) => {
+export function ErrorPanel({ error, isOpen, onToggle }: ErrorPanelProps) {
   if (!error) return null;
 
   return (
-    <div className={`
-      border-t transition-all duration-300
-      ${theme === 'dark' ? 'bg-dark-surface border-dark-border' : 'bg-red-50 border-red-200'}
-      ${isOpen ? 'max-h-64' : 'max-h-12'}
-      overflow-hidden
-    `}>
+    <div
+      className={cn(
+        'border-t border-border bg-bg-elevated transition-all duration-200',
+        isOpen ? 'max-h-64' : 'max-h-9',
+      )}
+    >
       <button
+        type="button"
         onClick={onToggle}
-        className={`
-          w-full px-4 py-2 flex items-center justify-between
-          ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-red-100'}
-          transition-colors
-        `}
+        className="w-full h-9 px-3 flex items-center justify-between hover:bg-surface-1 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <span className={`
-            text-sm font-medium
-            ${theme === 'dark' ? 'text-orange-400' : 'text-red-600'}
-          `}>
-            ⚠️ Error
-          </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <AlertTriangle className="h-3.5 w-3.5 text-warn shrink-0" />
+          <span className="text-xs font-medium text-warn">Render error</span>
           {error.line > 0 && (
-            <span className={`
-              text-xs
-              ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}
-            `}>
-              Line {error.line}
-            </span>
+            <span className="text-[11px] text-fg-muted">Line {error.line}</span>
           )}
-          <span className={`
-            text-sm
-            ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}
-          `}>
-            {error.shortMessage}
-          </span>
+          <span className="text-xs text-fg-muted truncate">{error.shortMessage}</span>
         </div>
-        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-          {isOpen ? '▼' : '▶'}
-        </span>
+        {isOpen ? (
+          <ChevronDown className="h-3.5 w-3.5 text-fg-subtle shrink-0" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-fg-subtle shrink-0" />
+        )}
       </button>
-      
+
       {isOpen && (
-        <div className={`
-          px-4 pb-4 pt-2
-          ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}
-        `}>
-          <pre className={`
-            text-xs font-mono whitespace-pre-wrap overflow-auto
-            ${theme === 'dark' ? 'bg-dark-bg text-gray-400' : 'bg-white text-gray-800'}
-            p-3 rounded border
-            ${theme === 'dark' ? 'border-dark-border' : 'border-red-200'}
-          `}>
+        <div className="px-3 pb-3">
+          <pre className="text-[11px] font-mono whitespace-pre-wrap overflow-auto p-2.5 rounded border border-border bg-surface-1 text-fg-muted max-h-48">
             {error.details}
           </pre>
         </div>
       )}
     </div>
   );
-};
-
-export default ErrorPanel;
-
+}
